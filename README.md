@@ -1,4 +1,4 @@
-# 🍛 MakanMana
+# 🍛 KrekFood
 
 > Your AI-powered food plug for discovering the best makan spots in Malaysia 🇲🇾
 
@@ -114,28 +114,24 @@ Set environment variables:
 Build command: `bun run build`
 Output: `dist/`
 
-## 👥 Team
-
-**Amirah** 
+## 👥 Developer
 - Supabase Edge Functions development
 - Google Gemini API integration
 - SerpAPI integration for Google Maps
 - AI prompt engineering
-
-**Syahirah**
 - Frontend & AI Groq Integration
 - React application architecture
 - UI/UX design & implementation
 - Responsive design & theming
 
-Built together for **Cursor Hackathon 2025** 🇲🇾
+Built together for **krackeddev.com** Bounty #4 https://krackeddevs.com/code/bounty/viral-food-directory-map
 
 ## 📄 License
 
 MIT License
 
 ## 🙏 Acknowledgments
-
+- a fork of Github Repo : https://github.com/hackathon-girls/orked that acts as Base Foundation
 - Powered by [Google Gemini](https://ai.google.dev/), [SerpAPI](https://serpapi.com/), and [Supabase](https://supabase.com/)
 - Design inspired by Malaysian hawker centers
 
