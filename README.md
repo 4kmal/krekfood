@@ -1,8 +1,8 @@
 # 🍛 KrekFood
 
-> Your AI-powered food plug for discovering the best makan spots in Malaysia 🇲🇾
+> Your AI-powered food Recommendation System plug for krackeddevs to fill their fuel after a let night coding session
 
-A modern, conversational food recommendation app that helps you find authentic Malaysian restaurants using AI and real Google Maps reviews. Just ask naturally in Manglish, and we'll hook you up with the best spots!
+A modern, conversational food recommendation app that helps you find authentic Malaysian restaurants using AI and real Google Maps reviews.
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
