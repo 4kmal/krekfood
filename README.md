@@ -1,6 +1,6 @@
 # 👨🏻‍💻🍔☕️🥤 KrekFood for Hungry Devs
 
-> Your AI-powered food Recommendation System plug for krackeddevs to fill their fuel after a let night coding session
+> Your AI-powered food Recommendation System plug for krackeddevs to fill their fuel after a late night coding session
 
 A modern, conversational food recommendation app that helps you find authentic Malaysian restaurants using AI and real Google Maps reviews.
 
@@ -114,7 +114,7 @@ Set environment variables:
 Build command: `bun run build`
 Output: `dist/`
 
-## 👥 Developer
+## 👥 Features
 - Supabase Edge Functions development
 - Google Gemini API integration
 - SerpAPI integration for Google Maps
