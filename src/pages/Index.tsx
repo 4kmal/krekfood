@@ -5,12 +5,16 @@ import { ChatBubble } from '@/components/ChatBubble';
 import { ChatInput } from '@/components/ChatInput';
 import { LocationPermissionDialog } from '@/components/LocationPermissionDialog';
 import { LocationFallbackDialog } from '@/components/LocationFallbackDialog';
-import { SmartSuggestions } from '@/components/SmartSuggestions';
+import { TrendingKedaiCard } from '@/components/TrendingKedaiCard';
+import { InteractiveMap } from '@/components/InteractiveMap';
+import { MapFilters } from '@/components/MapFilters';
+import { KedaiDetailPanel } from '@/components/KedaiDetailPanel';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { useTheme } from '@/components/ThemeProvider';
-import { Loader2, Moon, Sun, Filter, X, MapPin, Navigation, User, LogOut, Bookmark } from 'lucide-react';
+import { useMap } from '@/contexts/MapContext';
+import { Loader2, Moon, Sun, Filter, X, MapPin, Navigation, User, LogOut, Bookmark, Map } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import {
@@ -24,7 +28,7 @@ import {
 const WELCOME_MESSAGE: ChatMessage = {
   id: 'welcome',
   role: 'assistant',
-  content: "Apa khabar geng! 🍛 Aku food plug korang ni.\n\n**Tekan suggestion kat bawah** atau taip sendiri apa yang korang nak!\n\nBoleh tanya apa-apa makanan, mana-mana area kat Malaysia. Aku akan carikan dengan Google Maps reviews yang real. Trust me bro! 😎",
+  content: "Salam Krackers! 👨🏻‍💻 I am your certified krekfood AI.\n\nBoleh tekan auto-suggestion atau taip sendiri!\n\nNak Makan Mana?",
   timestamp: new Date(),
 };
 
@@ -54,6 +58,14 @@ const Index = () => {
   const { user, signOut, session, loading: authLoading } = useAuth();
   const { bookmarks } = useBookmarks();
   const { resolvedTheme, setTheme } = useTheme();
+  const { 
+    selectedKedai, 
+    setSelectedKedai, 
+    setAllKedai, 
+    setFilteredKedai,
+    setUserLocation: setMapUserLocation,
+    setMapCenter,
+  } = useMap();
   
   // Redirect to landing page if user logs out
   useEffect(() => {
@@ -72,12 +84,15 @@ const Index = () => {
   const [locationName, setLocationName] = useState<string | null>(null);
   const [showLocationDialog, setShowLocationDialog] = useState(false);
   const [showLocationFallback, setShowLocationFallback] = useState(false);
+  const [showMapView, setShowMapView] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Get Google Maps API key from env
+  const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
   };
-
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -124,6 +139,10 @@ const Index = () => {
         const { latitude, longitude } = position.coords;
         const newLocation = { lat: latitude, lon: longitude };
         setUserLocation(newLocation);
+        
+        // Update map context
+        setMapUserLocation({ lat: latitude, lng: longitude });
+        setMapCenter({ lat: latitude, lng: longitude });
         
         // Reverse geocode to get location name
         let area = 'Your Location';
@@ -177,6 +196,7 @@ const Index = () => {
   const clearLocation = () => {
     setUserLocation(null);
     setLocationName(null);
+    setMapUserLocation(null);
     toast.info('Location cleared');
   };
 
@@ -339,6 +359,19 @@ const Index = () => {
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, assistantMessage]);
+
+      // If there are kedai results, show map and update map context
+      if (assistantMessage.kedaiResults && assistantMessage.kedaiResults.length > 0) {
+        setShowMapView(true);
+        setAllKedai(assistantMessage.kedaiResults);
+        setFilteredKedai(assistantMessage.kedaiResults);
+        
+        // Center map on first result if available
+        const firstKedai = assistantMessage.kedaiResults[0];
+        if (firstKedai.lat && firstKedai.lon) {
+          setMapCenter({ lat: firstKedai.lat, lng: firstKedai.lon });
+        }
+      }
     } catch (err) {
       console.error('Chat error details:', err);
       
@@ -403,19 +436,34 @@ const Index = () => {
     setCuisine('');
     setUserLocation(null);
     setLocationName(null);
+    setMapUserLocation(null);
   };
 
+  // Handle kedai selection - center map on selected kedai
+  useEffect(() => {
+    if (selectedKedai) {
+      // Only auto-show map on first selection, don't override user's hide preference
+      setMapCenter({ lat: selectedKedai.lat, lng: selectedKedai.lon });
+    }
+  }, [selectedKedai, setMapCenter]);
+
   return (
-    <div className="flex flex-col h-screen bg-background bg-nasi-pattern">
+    <div className="flex flex-col h-screen bg-background">
       {/* Header */}
       <header className="flex-shrink-0 border-b border-border bg-card/80 backdrop-blur-sm px-4 py-3">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">🍛</span>
+            <span className="text-3xl">👨🏻‍💻</span>
             <div>
               <h1 className="font-bold text-lg text-foreground">Kracked Food</h1>
-              <p className="text-xs text-muted-foreground">cari makanan kracked</p>
+              <p className="text-xs text-muted-foreground">for hungry kracked devs</p>
             </div>
+            {/* Map Filters next to title when map is visible */}
+            {showMapView && (
+              <div className="ml-4 flex items-center gap-2">
+                <MapFilters />
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -431,6 +479,15 @@ const Index = () => {
                   {activeFiltersCount}
                 </span>
               )}
+            </Button>
+            <Button
+              variant={showMapView ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setShowMapView(!showMapView)}
+              className="gap-1"
+            >
+              <Map className="w-4 h-4" />
+              {showMapView ? 'Hide' : 'View'} Map
             </Button>
             <Button
               variant="ghost"
@@ -493,7 +550,7 @@ const Index = () => {
 
         {/* Filter Panel */}
         {showFilters && (
-          <div className="max-w-4xl mx-auto mt-4 p-4 bg-gradient-to-br from-card via-card to-muted/30 rounded-xl border border-border/50 shadow-lg backdrop-blur-sm animate-slide-down">
+          <div className="mt-4 p-4 bg-gradient-to-br from-card via-card to-muted/30 rounded-xl border border-border/50 shadow-lg backdrop-blur-sm animate-slide-down">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 bg-primary/10 rounded-lg">
@@ -652,42 +709,81 @@ const Index = () => {
         )}
       </header>
 
-      {/* Chat Messages */}
-      <main className="flex-1 overflow-y-auto px-4 py-4">
-        <div className="max-w-4xl mx-auto space-y-4">
-          {/* Smart Suggestions at top when chat is fresh */}
-          {messages.length === 1 && !loading && (
-            <SmartSuggestions onSuggestionClick={sendMessage} />
-          )}
-          
-          {messages.map((message) => (
-            <ChatBubble key={message.id} message={message} />
-          ))}
-          
-          {loading && (
-            <div className="flex gap-3 animate-fade-up">
-              <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center animate-pulse-glow">
-                <Loader2 className="w-4 h-4 animate-spin text-secondary-foreground" />
-              </div>
-              <div className="bg-card border border-border rounded-2xl rounded-bl-md px-4 py-2.5">
-                <p className="text-sm text-muted-foreground">Hunting for spots{userLocation ? ' near you' : ''}...</p>
-              </div>
+      {/* Main Content - Three Column Layout */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Column - Chat */}
+        <div className={`flex flex-col ${showMapView && !selectedKedai ? 'w-1/3' : showMapView && selectedKedai ? 'w-1/4' : 'w-full'} border-r border-border transition-all duration-300`}>
+          {/* Chat Messages */}
+          <main className="flex-1 overflow-y-auto px-4 py-4">
+            <div className="space-y-4">
+              {/* Trending Kedai Card at top when chat is fresh */}
+              {messages.length === 1 && !loading && (
+                <TrendingKedaiCard onKedaiClick={(kedai) => {
+                  setShowMapView(true);
+                  setSelectedKedai(kedai);
+                }} />
+              )}
+              
+              {messages.map((message) => (
+                <ChatBubble key={message.id} message={message} />
+              ))}
+              
+              {loading && (
+                <div className="flex gap-3 animate-fade-up">
+                  <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center animate-pulse-glow">
+                    <Loader2 className="w-4 h-4 animate-spin text-secondary-foreground" />
+                  </div>
+                  <div className="bg-card border border-border rounded-2xl rounded-bl-md px-4 py-2.5">
+                    <p className="text-sm text-muted-foreground">Hunting for spots{userLocation ? ' near you' : ''}...</p>
+                  </div>
+                </div>
+              )}
+              
+              <div ref={messagesEndRef} />
             </div>
-          )}
-          
-          <div ref={messagesEndRef} />
-        </div>
-      </main>
+          </main>
 
-      {/* Input */}
-      <footer className="flex-shrink-0 border-t border-border bg-card/80 backdrop-blur-sm px-4 py-3">
-        <div className="max-w-4xl mx-auto">
-          <ChatInput onSend={sendMessage} loading={loading} />
-          <p className="text-xs text-center text-muted-foreground mt-2">
-            KrackedFood {userLocation && '📍'}
-          </p>
+          {/* Input */}
+          <footer className="flex-shrink-0 border-t border-border bg-card/80 backdrop-blur-sm px-4 py-3">
+            <ChatInput onSend={sendMessage} loading={loading} />
+            <p className="text-xs text-center text-muted-foreground mt-2">
+              KrackedFood {userLocation && '📍'}
+            </p>
+          </footer>
         </div>
-      </footer>
+
+        {/* Middle Column - Map */}
+        {showMapView && (
+          <div className={`${selectedKedai ? 'w-1/2' : 'w-2/3'} flex flex-col transition-all duration-300`}>
+            <div className="flex-1 relative">
+              {googleMapsApiKey ? (
+                <InteractiveMap googleMapsApiKey={googleMapsApiKey} />
+              ) : (
+                <div className="flex items-center justify-center h-full bg-muted">
+                  <div className="text-center p-6">
+                    <MapPin className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+                    <p className="text-sm font-medium text-foreground mb-1">Map Unavailable</p>
+                    <p className="text-xs text-muted-foreground">
+                      Please set VITE_GOOGLE_MAPS_API_KEY in your .env file
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Right Column - Detail Panel (fixed third column) */}
+        {showMapView && selectedKedai && (
+          <div className="w-1/4 flex-shrink-0">
+            <KedaiDetailPanel
+              kedai={selectedKedai}
+              foodImage={selectedKedai.thumbnail || null}
+              onClose={() => setSelectedKedai(null)}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Location Permission Dialog */}
       <LocationPermissionDialog

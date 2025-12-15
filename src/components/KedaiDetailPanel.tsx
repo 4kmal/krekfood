@@ -1,8 +1,9 @@
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Star, ExternalLink, Share2, ThumbsUp, Navigation, Bookmark, BookmarkCheck, Copy, MessageCircle, Send } from 'lucide-react';
+import { MapPin, Star, ExternalLink, Share2, Navigation, Bookmark, BookmarkCheck, Copy, MessageCircle, Send, X } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Kedai, Review } from '@/types/kedai';
+import type { Kedai } from '@/types/kedai';
 import { Button } from '@/components/ui/button';
+import { useMap } from '@/contexts/MapContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,29 +11,29 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { KedaiVibeCheck } from './KedaiVibeCheck';
+import { ScrollArea } from './ui/scroll-area';
 
-interface KedaiDetailSheetProps {
+interface KedaiDetailPanelProps {
   kedai: Kedai;
   foodImage: string | null;
-  open: boolean;
   onClose: () => void;
 }
 
-export function KedaiDetailSheet({ kedai, foodImage, open, onClose }: KedaiDetailSheetProps) {
+export function KedaiDetailPanel({ kedai, foodImage, onClose }: KedaiDetailPanelProps) {
   const { user } = useAuth();
   const { addBookmark, removeBookmark, isBookmarked } = useBookmarks();
+  const { setShowDirections, userLocation, customStartLocation } = useMap();
   const navigate = useNavigate();
   
   const googleMapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(kedai.name + ' ' + kedai.area + ' Malaysia')}`;
   const reviews = kedai.reviews || [];
   const bookmarked = isBookmarked(kedai.id);
 
-  const shareMessage = `👨🏻‍💻🍔🥤 Check out ${kedai.name}!\n\n📍 ${kedai.area}\n🍽️ ${kedai.signature || 'Great food!'}\n⭐ ${kedai.rating ? `${kedai.rating}/5` : 'Highly rated'}\n💵 ${kedai.price_level || '$$'}\n\n🗺️ ${googleMapsUrl}\n\nFound via Makan Mana Geng 🇲🇾`;
+  const shareMessage = `👨🏻‍💻 Check out ${kedai.name}!\n\n📍 ${kedai.area}\n🍽️ ${kedai.signature || 'Great food!'}\n⭐ ${kedai.rating ? `${kedai.rating}/5` : 'Highly rated'}\n💵 ${kedai.price_level || '$$'}\n\n🗺️ ${googleMapsUrl}\n\nFound via KrekFood 🇲🇾`;
 
   const shareToWhatsApp = () => {
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
@@ -92,9 +93,22 @@ export function KedaiDetailSheet({ kedai, foodImage, open, onClose }: KedaiDetai
   };
 
   return (
-    <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent side="right" className="w-full sm:w-[480px] sm:max-w-[480px] p-0 gap-0 overflow-hidden">
-        <div className="flex flex-col h-full">
+    <div className="w-full h-full flex flex-col bg-background border-l border-border">
+      {/* Header with close button */}
+      <div className="flex-shrink-0 flex items-center justify-between p-3 border-b border-border">
+        <h2 className="text-sm font-semibold text-muted-foreground">Restaurant Details</h2>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          className="h-8 w-8"
+        >
+          <X className="w-4 h-4" />
+        </Button>
+      </div>
+
+      <ScrollArea className="flex-1">
+        <div className="flex flex-col">
           {/* Header Image */}
           <div className="relative w-full h-48 bg-muted flex-shrink-0">
             {foodImage ? (
@@ -114,7 +128,8 @@ export function KedaiDetailSheet({ kedai, foodImage, open, onClose }: KedaiDetai
               <Button
                 type="button"
                 onClick={handleBookmark}
-                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                size="sm"
+                className={`rounded-full transition-colors ${
                   bookmarked 
                     ? 'bg-primary text-primary-foreground' 
                     : 'bg-background/80 backdrop-blur-sm hover:bg-background'
@@ -130,12 +145,12 @@ export function KedaiDetailSheet({ kedai, foodImage, open, onClose }: KedaiDetai
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="p-4 space-y-4">
             {/* Title */}
-            <SheetHeader className="space-y-1 mb-3">
-              <SheetTitle className="text-xl font-bold text-foreground text-left">
+            <div className="space-y-1">
+              <h1 className="text-xl font-bold text-foreground">
                 {kedai.name}
-              </SheetTitle>
+              </h1>
               <div className="flex items-center gap-2 text-sm">
                 {kedai.rating && (
                   <>
@@ -158,15 +173,22 @@ export function KedaiDetailSheet({ kedai, foodImage, open, onClose }: KedaiDetai
                 <span className="text-muted-foreground">·</span>
                 <span className="text-muted-foreground">Restaurant</span>
               </div>
-            </SheetHeader>
+            </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
+            <div className="flex gap-2 flex-wrap">
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="flex-shrink-0 gap-1.5 press-effect"
-                onClick={() => window.open(googleMapsUrl, '_blank')}
+                className="flex-1 gap-1.5 press-effect"
+                onClick={() => {
+                  if (!userLocation && !customStartLocation) {
+                    toast.info('Please set your location first to get directions');
+                  } else {
+                    setShowDirections(true);
+                    toast.success('Showing directions on map');
+                  }
+                }}
               >
                 <Navigation className="w-4 h-4" />
                 Directions
@@ -176,7 +198,7 @@ export function KedaiDetailSheet({ kedai, foodImage, open, onClose }: KedaiDetai
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="flex-shrink-0 gap-1.5 press-effect"
+                    className="gap-1.5 press-effect"
                   >
                     <Share2 className="w-4 h-4" />
                     Share
@@ -206,7 +228,7 @@ export function KedaiDetailSheet({ kedai, foodImage, open, onClose }: KedaiDetai
               <Button 
                 variant={bookmarked ? "secondary" : "outline"}
                 size="sm" 
-                className="flex-shrink-0 gap-1.5 press-effect"
+                className="gap-1.5 press-effect"
                 onClick={handleBookmark}
               >
                 {bookmarked ? (
@@ -221,20 +243,31 @@ export function KedaiDetailSheet({ kedai, foodImage, open, onClose }: KedaiDetai
                   </>
                 )}
               </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="gap-1.5 press-effect relative group"
+                onClick={() => window.open(googleMapsUrl, '_blank')}
+                title="Open in Google Maps"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 0C7.31 0 3.5 3.81 3.5 8.5c0 1.64.47 3.17 1.27 4.47l6.73 10.53 6.73-10.53c.8-1.3 1.27-2.83 1.27-4.47C20.5 3.81 16.69 0 12 0zm0 11.5c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z" fill="#4285F4"/>
+                  <path d="M12 2c-3.31 0-6 2.69-6 6.5 0 1.19.34 2.3.92 3.25L12 20.25l5.08-8.5c.58-.95.92-2.06.92-3.25C18 4.69 15.31 2 12 2zm0 9.5c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z" fill="#EA4335"/>
+                  <path d="M12 5.5c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" fill="#FBBC04"/>
+                </svg>
+                <ExternalLink className="w-4 h-4" />
+              </Button>
             </div>
 
-            {/* VibeCheck */}
-            <KedaiVibeCheck kedai={kedai} />
-
             {/* Tabs */}
-            <Tabs defaultValue="overview" className="w-full mt-4">
-              <TabsList className="w-full grid grid-cols-2 mb-3">
+            <Tabs defaultValue="overview" className="w-full">
+              <TabsList className="w-full grid grid-cols-2">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="reviews">Reviews ({reviews.length})</TabsTrigger>
               </TabsList>
 
               {/* Overview Tab */}
-              <TabsContent value="overview" className="space-y-3 mt-0">
+              <TabsContent value="overview" className="space-y-3 mt-3">
                 {/* Distance (if available) */}
                 {kedai.distanceFormatted && (
                   <div className="flex items-start gap-3 py-2">
@@ -297,10 +330,10 @@ export function KedaiDetailSheet({ kedai, foodImage, open, onClose }: KedaiDetai
               </TabsContent>
 
               {/* Reviews Tab */}
-              <TabsContent value="reviews" className="space-y-3 mt-0">
+              <TabsContent value="reviews" className="space-y-3 mt-3">
                 {reviews.length > 0 ? (
-                  reviews.map((review: Review, idx: number) => {
-                    // Create unique key from review properties (no index fallback)
+                  reviews.map((review, idx) => {
+                    // Create unique key from review properties
                     const reviewKey = `${review.name}-${review.text.slice(0, 50).replace(/\s+/g, '-')}-${review.date || review.rating || 'no-date'}`;
                     return (
                     <div 
@@ -332,12 +365,6 @@ export function KedaiDetailSheet({ kedai, foodImage, open, onClose }: KedaiDetai
                         </div>
                       </div>
                       <p className="text-sm text-foreground leading-relaxed">{review.text}</p>
-                      {review.likes !== undefined && review.likes > 0 && (
-                        <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
-                          <ThumbsUp className="w-3 h-3" />
-                          <span>{review.likes} found this helpful</span>
-                        </div>
-                      )}
                     </div>
                     );
                   })
@@ -349,20 +376,13 @@ export function KedaiDetailSheet({ kedai, foodImage, open, onClose }: KedaiDetai
               </TabsContent>
             </Tabs>
           </div>
-
-          {/* Bottom Action */}
-          <div className="flex-shrink-0 p-4 border-t border-border bg-card">
-            <Button 
-              className="w-full gap-2 press-effect"
-              onClick={() => window.open(googleMapsUrl, '_blank')}
-            >
-              <MapPin className="w-4 h-4" />
-              Open in Google Maps
-              <ExternalLink className="w-4 h-4" />
-            </Button>
-          </div>
         </div>
-      </SheetContent>
-    </Sheet>
+      </ScrollArea>
+
+      {/* Bottom VibeCheck */}
+      <div className="flex-shrink-0 p-4 border-t border-border bg-card">
+        <KedaiVibeCheck kedai={kedai} />
+      </div>
+    </div>
   );
 }

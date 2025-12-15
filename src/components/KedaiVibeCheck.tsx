@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2, Sparkles, Flag, ThumbsUp, Users, AlertTriangle } from 'lucide-react';
+import { Loader2, Sparkles, Flag, ThumbsUp, Users, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import type { Kedai } from '@/types/kedai';
@@ -22,6 +22,7 @@ export function KedaiVibeCheck({ kedai }: KedaiVibeCheckProps) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<VibeCheckResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(true);
 
   const runVibeCheck = async () => {
     setLoading(true);
@@ -63,20 +64,28 @@ export function KedaiVibeCheck({ kedai }: KedaiVibeCheckProps) {
 
   if (!result && !loading) {
     return (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={runVibeCheck}
-        className="gap-2 border-primary/30 hover:bg-gradient-to-r hover:from-primary/10 hover:to-secondary/10 hover:border-primary/50 transition-all duration-300 hover:shadow-md hover:scale-105 active:scale-95"
-      >
-        <div className="relative">
-          <Sparkles className="w-4 h-4 text-primary animate-pulse" />
-          <div className="absolute inset-0 bg-primary/20 rounded-full blur-sm animate-ping" />
-        </div>
-        <span className="font-semibold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-          VibeCheck
-        </span>
-      </Button>
+      <div className="relative inline-block">
+        <style>{`
+          @keyframes animateRainbowBorder {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 89% 50%; }
+          }
+        `}</style>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={runVibeCheck}
+          className="relative gap-2 border-0 bg-card hover:bg-card transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95 before:absolute before:-inset-[2px] before:rounded-md before:bg-gradient-to-r before:from-red-500 before:via-yellow-500 before:to-green-500 before:bg-[length:400%] before:animate-[animateRainbowBorder_3s_linear_infinite] before:-z-10 after:absolute after:-inset-[2px] after:rounded-md after:bg-gradient-to-r after:from-red-500 after:via-yellow-500 after:to-green-500 after:bg-[length:400%] after:blur-xl after:opacity-50 after:-z-20 after:animate-[animateRainbowBorder_3s_linear_infinite]"
+        >
+          <div className="relative">
+            <Sparkles className="w-4 h-4 text-primary animate-pulse" />
+            <div className="absolute inset-0 bg-primary/20 rounded-full blur-sm animate-ping" />
+          </div>
+          <span className="font-semibold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            Analyze Krack
+          </span>
+        </Button>
+      </div>
     );
   }
 
@@ -119,33 +128,48 @@ export function KedaiVibeCheck({ kedai }: KedaiVibeCheckProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-primary" />
-          <span className="font-semibold text-foreground">VibeCheck</span>
+          <span className="font-semibold text-foreground">Analyze Krack</span>
         </div>
-        <span className="text-2xl">{result.verdict.split(' ')[0]}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">{result.verdict.split(' ')[0]}</span>
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="p-1 hover:bg-muted rounded transition-colors"
+            aria-label={isExpanded ? "Minimize" : "Expand"}
+          >
+            {isExpanded ? (
+              <ChevronDown className="w-4 h-4" />
+            ) : (
+              <ChevronUp className="w-4 h-4" />
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Score */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Vibe Score</span>
-          <span className={`text-2xl font-bold ${getVibeColor(result.vibeScore)}`}>
-            {result.vibeScore}/100
-          </span>
+      {isExpanded && (
+      <>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Vibe Score</span>
+            <span className={`text-2xl font-bold ${getVibeColor(result.vibeScore)}`}>
+              {result.vibeScore}/100
+            </span>
+          </div>
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div 
+              className={`h-full ${getProgressColor(result.vibeScore)} transition-all duration-500`}
+              style={{ width: `${result.vibeScore}%` }}
+            />
+          </div>
+          <p className="text-lg font-medium text-foreground">{result.verdict}</p>
         </div>
-        <div className="h-2 bg-muted rounded-full overflow-hidden">
-          <div 
-            className={`h-full ${getProgressColor(result.vibeScore)} transition-all duration-500`}
-            style={{ width: `${result.vibeScore}%` }}
-          />
-        </div>
-        <p className="text-lg font-medium text-foreground">{result.verdict}</p>
-      </div>
 
-      {/* Summary */}
-      <p className="text-sm text-muted-foreground italic">"{result.summary}"</p>
+        {/* Summary */}
+        <p className="text-sm text-muted-foreground italic">"{result.summary}"</p>
 
-      {/* Flags */}
-      <div className="grid grid-cols-2 gap-3">
+        {/* Flags */}
+        <div className="grid grid-cols-2 gap-3">
         {/* Green Flags */}
         {result.greenFlags.length > 0 && (
           <div className="space-y-1.5">
@@ -171,10 +195,10 @@ export function KedaiVibeCheck({ kedai }: KedaiVibeCheckProps) {
             ))}
           </div>
         )}
-      </div>
+        </div>
 
-      {/* Best For / Avoid */}
-      <div className="flex gap-4 pt-2 border-t border-border">
+        {/* Best For / Avoid */}
+        <div className="flex gap-4 pt-2 border-t border-border">
         <div className="flex-1">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
             <Users className="w-3 h-3" />
@@ -189,18 +213,20 @@ export function KedaiVibeCheck({ kedai }: KedaiVibeCheckProps) {
           </div>
           <p className="text-xs text-foreground">{result.avoidIf}</p>
         </div>
-      </div>
+        </div>
 
-      {/* Re-run */}
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        onClick={runVibeCheck} 
-        className="w-full text-xs hover:bg-primary/10 hover:text-primary transition-colors"
-      >
-        <Sparkles className="w-3 h-3 mr-1.5" />
-        Run VibeCheck again
-      </Button>
+        {/* Re-run */}
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={runVibeCheck} 
+          className="w-full text-xs hover:bg-primary/10 hover:text-primary transition-colors"
+        >
+          <Sparkles className="w-3 h-3 mr-1.5" />
+          Analyze Krack again
+        </Button>
+      </>
+      )}
     </div>
   );
 }

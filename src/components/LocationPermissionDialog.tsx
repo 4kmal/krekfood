@@ -31,7 +31,7 @@ export function LocationPermissionDialog({ open, onClose, onAllow, loading }: Lo
               <span>Find restaurants within walking distance</span>
             </div>
             <div className="flex items-center gap-2 text-sm text-foreground">
-              <span className="text-lg">🍛</span>
+              <span className="text-lg">👨�‍💻🍔🥤</span>
               <span>Get personalized "near me" recommendations</span>
             </div>
             <div className="flex items-center gap-2 text-sm text-foreground">

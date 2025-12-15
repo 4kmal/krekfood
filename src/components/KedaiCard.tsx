@@ -2,7 +2,7 @@ import { Kedai, Review } from '@/types/kedai';
 import { MapPin, Star, CheckCircle, ChevronRight, MessageCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { KedaiDetailSheet } from './KedaiDetailSheet';
+import { useMap } from '@/contexts/MapContext';
 
 interface KedaiCardProps {
   kedai: Kedai;
@@ -11,7 +11,7 @@ interface KedaiCardProps {
 export function KedaiCard({ kedai }: KedaiCardProps) {
   const [foodImage, setFoodImage] = useState<string | null>(kedai.thumbnail || null);
   const [imageLoading, setImageLoading] = useState(!kedai.thumbnail);
-  const [showDetail, setShowDetail] = useState(false);
+  const { setSelectedKedai } = useMap();
 
   useEffect(() => {
     if (kedai.thumbnail) {
@@ -41,14 +41,17 @@ export function KedaiCard({ kedai }: KedaiCardProps) {
   const reviews = kedai.reviews || [];
   const firstReview = reviews[0];
 
+  const handleSelectKedai = () => {
+    setSelectedKedai(kedai);
+  };
+
   return (
-    <>
-      <div className="bg-card border border-border rounded-xl overflow-hidden hover:border-primary/30 transition-all duration-200 kedai-card">
-        {/* Compact Google-style List Card */}
-        <button
-          onClick={() => setShowDetail(true)}
-          className="w-full flex gap-3 p-3 hover:bg-muted/50 transition-all duration-200 text-left press-effect group"
-        >
+    <div className="bg-card border border-border rounded-xl overflow-hidden hover:border-primary/30 transition-all duration-200 kedai-card">
+      {/* Compact Google-style List Card */}
+      <button
+        onClick={handleSelectKedai}
+        className="w-full flex gap-3 p-3 hover:bg-muted/50 transition-all duration-200 text-left press-effect group"
+      >
           {/* Thumbnail */}
           <div className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden bg-muted">
             {imageLoading ? (
@@ -142,7 +145,7 @@ export function KedaiCard({ kedai }: KedaiCardProps) {
               {reviews.slice(0, 5).map((review: Review, idx: number) => (
                 <div 
                   key={idx}
-                  onClick={() => setShowDetail(true)}
+                  onClick={handleSelectKedai}
                   className="flex-shrink-0 w-56 p-2.5 bg-muted/50 hover:bg-muted rounded-lg cursor-pointer transition-colors"
                 >
                   <div className="flex items-center gap-2 mb-1.5">
@@ -166,7 +169,7 @@ export function KedaiCard({ kedai }: KedaiCardProps) {
               ))}
               {reviews.length > 5 && (
                 <button
-                  onClick={() => setShowDetail(true)}
+                  onClick={handleSelectKedai}
                   className="flex-shrink-0 w-20 flex items-center justify-center bg-muted/50 hover:bg-muted rounded-lg text-xs text-primary font-medium"
                 >
                   +{reviews.length - 5} more
@@ -175,15 +178,6 @@ export function KedaiCard({ kedai }: KedaiCardProps) {
             </div>
           </div>
         )}
-      </div>
-
-      {/* Detail Sheet */}
-      <KedaiDetailSheet 
-        kedai={kedai}
-        foodImage={foodImage}
-        open={showDetail}
-        onClose={() => setShowDetail(false)}
-      />
-    </>
+    </div>
   );
 }

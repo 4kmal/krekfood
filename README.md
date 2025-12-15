@@ -11,13 +11,16 @@ A modern, conversational food recommendation app that helps you find authentic M
 
 - 🤖 AI-powered chat recommendations using Google Gemini
 - 📍 Location-based restaurant search
+- 🗺️ Interactive Google Maps with pins and directions
 - 🔍 Real Google Maps reviews via SerpAPI
 - 💰 Budget & cuisine filters
+- 📌 Custom start location pin for directions
+- 🎯 Distance calculation and routing
 - ⭐ AI-powered vibe analysis
 - 🖼️ AI-generated food images
 - 🔖 Save favorite spots
 - 🌙 Dark mode support
-- 📱 Fully responsive design
+- 📱 Fully responsive design with three-column layout
 
 ## 🚀 Tech Stack
 
@@ -39,11 +42,13 @@ Create `.env`:
 ```env
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_PUBLISHABLE_KEY=your_anon_key
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 ```
 
 3. **Set Supabase secrets:**
 - `GEMINI_API_KEY` - Google Gemini API key
 - `SERPAPI_KEY` - SerpAPI key
+- `GOOGLE_MAPS_API_KEY` - Google Maps JavaScript API key (for interactive map)
 
 4. **Deploy Edge Functions:**
 ```bash
@@ -110,6 +115,7 @@ Recommended: **Vercel** or **Netlify**
 Set environment variables:
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `VITE_GOOGLE_MAPS_API_KEY`
 
 Build command: `bun run build`
 Output: `dist/`

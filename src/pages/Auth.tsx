@@ -92,16 +92,9 @@ export default function Auth() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex items-center gap-3">
-              <span className="text-3xl">🍛</span>
+              <span className="text-3xl">👨🏻‍💻</span>
               <div>
-                <h1 
-                  className="font-bold text-lg text-foreground"
-                  style={{
-                    fontFamily: '"Shadows Into Light", cursive'
-                  }}
-                >
-                  Kracked Food
-                </h1>
+                <h1 className="font-bold text-lg text-foreground">Kracked Food</h1>
                 <p className="text-xs text-muted-foreground">Login to save your favorites</p>
               </div>
             </div>

@@ -11,7 +11,7 @@ const DEMO_CONVERSATION = [
   { type: 'assistant', text: 'Eh best tu geng! Jap aku carikan...' },
   { 
     type: 'result', 
-    name: 'Village Park Restaurant',
+    name: 'Warung Kak Lin',
     rating: 4.5,
     area: 'Damansara Uptown',
     signature: 'Nasi Lemak Ayam Goreng',
@@ -20,12 +20,12 @@ const DEMO_CONVERSATION = [
   },
   { 
     type: 'result', 
-    name: 'Nasi Lemak Antarabangsa',
+    name: 'White Town Coffee',
     rating: 4.3,
     area: 'Kampung Baru',
     signature: 'Nasi Lemak Special',
     price: '$',
-    image: '🍚'
+    image: '☕️'
   },
 ];
 
@@ -105,7 +105,7 @@ export default function Landing() {
       <header className="flex-shrink-0 px-4 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">🍛</span>
+            <span className="text-3xl">👨🏻‍💻🍔🥤</span>
             <span 
               className="font-bold text-lg text-foreground" 
               style={{
@@ -157,7 +157,7 @@ export default function Landing() {
           <div className="bg-card border-2 border-border rounded-3xl p-3 shadow-2xl">
             {/* Phone Header */}
             <div className="flex items-center gap-2 px-3 py-2 border-b border-border mb-3">
-              <span className="text-xl">🍛</span>
+              <span className="text-xl">👨🏻‍💻🍔🥤</span>
               <span className="font-semibold text-sm text-foreground">Kracked Food</span>
             </div>
             
@@ -166,7 +166,7 @@ export default function Landing() {
               {/* Welcome Message */}
               <div className="flex gap-2">
                 <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-xs">
-                  🍛
+                  👨🏻‍💻
                 </div>
                 <div className="bg-muted rounded-2xl rounded-bl-md px-3 py-2 max-w-[80%]">
                   <p className="text-sm text-foreground">Yo geng! Nak makan apa hari ni?</p>
@@ -191,7 +191,7 @@ export default function Landing() {
               {currentStep >= 2 && (
                 <div className="flex gap-2 animate-fade-up">
                   <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-xs">
-                    🍛
+                    👨🏻‍💻
                   </div>
                   <div className="bg-muted rounded-2xl rounded-bl-md px-3 py-2 max-w-[80%]">
                     <p className="text-sm text-foreground">{DEMO_CONVERSATION[1].text}</p>
