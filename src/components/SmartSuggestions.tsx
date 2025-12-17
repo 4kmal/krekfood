@@ -18,7 +18,7 @@ export function SmartSuggestions({ onSuggestionClick }: SmartSuggestionsProps) {
         icon: <Sunrise className="w-4 h-4" />,
         label: 'Breakfast Ideas',
         items: [
-          { text: 'Nasi lemak best dekat sini', emoji: '👨🏻‍💻🍔🥤' },
+          { text: 'Nasi lemak best dekat sini', emoji: '👨🏻‍💻' },
           { text: 'Roti canai sedap area ni', emoji: '🥞' },
           { text: 'Dim sum spot untuk breakfast', emoji: '🥟' },
           { text: 'Kopi tarik dengan toast set', emoji: '☕' },

@@ -135,7 +135,7 @@ export default function Auth() {
               </p>
               <div className="bg-muted/50 rounded-lg p-3 mb-4">
                 <p className="text-xs text-muted-foreground">
-                  💡 <strong>Tips:</strong> Click the link within 1 hour. Only click once - kalau dah click, jangan click lagi.
+                  <strong>Message:</strong>Click the link within 1 hour & Only click once
                 </p>
               </div>
               <Button 
@@ -152,7 +152,7 @@ export default function Auth() {
           ) : (
             <div className="bg-card border border-border rounded-2xl p-6 animate-fade-up">
               <div className="text-center mb-6">
-                <h2 className="text-xl font-bold text-foreground mb-1">Welcome, geng! 👋</h2>
+                <h2 className="text-xl font-bold text-foreground mb-1">Selamat Makan</h2>
                 <p className="text-sm text-muted-foreground">
                   Enter your email to sign in or create an account
                 </p>
@@ -188,7 +188,7 @@ export default function Auth() {
                       Sending magic link...
                     </>
                   ) : (
-                    'Send Magic Link ✨'
+                    'Send Special Login Pass'
                   )}
                 </Button>
               </form>

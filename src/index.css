@@ -1,8 +1,41 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Shadows+Into+Light&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800&family=Shadows+Into+Light&display=swap');
+@import url('https://fonts.googleapis.com/css?family=Vibur');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Flowly Pattern Animation */
+@keyframes patternMove {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 140px 16px;
+  }
+}
+
+.pattern-1 {
+  background-image: url("data:image/svg+xml,%3Csvg width='140' height='16' viewBox='0 0 140 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cg clip-path='url(%23clip0_4133_10133)'%3E%3Cpath d='M-0.0390625 44C16.7069 44 23.8369 34.61 32.6009 24.676C41.5709 14.516 51.4569 4 70.0009 4C88.5449 4 98.4309 14.516 107.401 24.676C116.165 34.61 123.295 44 140.041 44M-0.0390625 28.004C16.7069 28 23.8369 18.612 32.6009 8.678C41.5709 -1.484 51.4569 -12 70.0009 -12C88.5449 -12 98.4309 -1.484 107.401 8.678C116.165 18.612 123.295 28 140.041 28.006M140.001 12.008C123.255 12.006 116.165 2.612 107.401 -7.322C98.4309 -17.484 88.5449 -28 70.0009 -28C51.4569 -28 41.5709 -17.484 32.6009 -7.322C23.8369 2.612 16.7069 12 -0.0390625 12.004' stroke-opacity='0.05' stroke='%23ffffff'/%3E%3C/g%3E%3Cdefs%3E%3CclipPath id='clip0_4133_10133'%3E%3Crect width='140' height='16' fill='white'/%3E%3C/clipPath%3E%3C/defs%3E%3C/svg%3E");
+  background-repeat: repeat;
+  width: 100%;
+  height: 100%;
+  animation: patternMove 3s linear infinite;
+}
+
+/* Connecting line dash animation */
+@keyframes dashMove {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.animate-dash {
+  animation: dashMove 1s linear infinite;
+}
 
 @layer base {
   :root {
@@ -193,52 +226,78 @@
     border-color: hsl(160, 48%, 49%) !important;
   }
 
-  /* Google Maps InfoWindow Red Frosty Glass Theme */
-  .gm-style-iw.gm-style-iw-c {
-    background: linear-gradient(135deg, rgba(139, 30, 30, 0.85) 0%, rgba(80, 20, 20, 0.9) 100%) !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
-    color: #e3dede !important;
+  /* Google Maps InfoWindow Dark Theme */
+  .gm-style .gm-style-iw-c,
+  .gm-style-iw.gm-style-iw-c,
+  .gm-style .gm-style-iw {
+    background: #1A1A1A !important;
+    background-color: #1A1A1A !important;
+    color: #f8fafc !important;
     padding: 0 !important;
     border-radius: 16px !important;
-    overflow: hidden !important;
-    border: 1px solid rgba(255, 100, 100, 0.2) !important;
+    overflow: visible !important;
+    border: 1px solid rgba(99, 102, 241, 0.3) !important;
     box-shadow: 
-      0 8px 32px rgba(139, 30, 30, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+      0 20px 40px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
   }
 
   .gm-style-iw-d {
     overflow: hidden !important;
     max-height: none !important;
+    background: #1A1A1A !important;
+    background-color: #1A1A1A !important;
+  }
+
+  /* InfoWindow content wrapper */
+  .gm-style-iw-d > div {
+    background: #1A1A1A !important;
+    background-color: #1A1A1A !important;
+  }
+
+  /* InfoWindow arrow/tail */
+  .gm-style-iw-tc {
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3)) !important;
   }
 
   .gm-style-iw-tc::after {
-    background: linear-gradient(135deg, rgba(139, 30, 30, 0.85) 0%, rgba(80, 20, 20, 0.9) 100%) !important;
+    background: #1A1A1A !important;
+    background-color: #1A1A1A !important;
+  }
+
+  .gm-style-iw-t::after {
+    background: #1A1A1A !important;
+    background-color: #1A1A1A !important;
   }
 
   /* Google Maps InfoWindow close button */
   .gm-style-iw button.gm-ui-hover-effect {
-    top: 4px !important;
-    right: 4px !important;
-    opacity: 0.8;
+    top: 8px !important;
+    right: 8px !important;
+    opacity: 0.7;
     background: rgba(255, 255, 255, 0.1) !important;
     border-radius: 50% !important;
+    width: 28px !important;
+    height: 28px !important;
+    transition: all 0.2s ease !important;
   }
 
   .gm-style-iw button.gm-ui-hover-effect:hover {
     opacity: 1;
-    background: rgba(255, 255, 255, 0.2) !important;
+    background: rgba(239, 68, 68, 0.8) !important;
+    transform: scale(1.1) !important;
   }
 
   .gm-style-iw button.gm-ui-hover-effect > span {
     background-color: #ffffff !important;
+    margin: 6px !important;
   }
 
   /* Google Maps InfoWindow Button Styling */
   .gm-style-iw button[class*="bg-primary"] {
-    background-color: rgba(106, 122, 154, 0.9) !important;
-    color: rgba(255, 250, 250, 1) !important;
+    background-color: rgba(99, 102, 241, 0.9) !important;
+    color: rgba(255, 255, 255, 1) !important;
   }
 
   /* Flight Animation Styles */
@@ -317,5 +376,135 @@
 
   .gm-style img[src*="data:image/svg"]:hover {
     filter: brightness(1.1) drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+  }
+
+  /* Neon Text Effect */
+  .neon-text {
+    font-family: "Vibur", cursive;
+    font-weight: 400;
+    color: #e0ffff;
+    text-shadow: 
+      0 -0.2em 0.5em rgba(0, 255, 255, 0.4),
+      0 0 0.01em rgba(0, 255, 255, 0.8),
+      0 0 1em #0ff,
+      0 0 0.5em #0ff,
+      0 0 0.1em #0ff,
+      0 0.05em 0.015em #000;
+    line-height: 1;
+  }
+
+  .neon-text span {
+    animation: neon-blink linear infinite 2s;
+  }
+
+  .neon-text span:nth-of-type(2) {
+    animation: neon-blink linear infinite 3s;
+  }
+
+  @keyframes neon-blink {
+    78% {
+      color: inherit;
+      text-shadow: inherit;
+    }
+    79% {
+      color: #333;
+    }
+    80% {
+      text-shadow: none;
+    }
+    81% {
+      color: inherit;
+      text-shadow: inherit;
+    }
+    82% {
+      color: #333;
+      text-shadow: none;
+    }
+    83% {
+      color: inherit;
+      text-shadow: inherit;
+    }
+    92% {
+      color: #333;
+      text-shadow: none;
+    }
+    92.5% {
+      color: inherit;
+      text-shadow: inherit;
+    }
+  }
+
+  /* Frutiger Aero Badge Effect */
+  .frutiger-aero-badge {
+    position: relative;
+    background-color: hsl(215 86% 48% / 0.75);
+    border: 1px solid hsl(215 86% 45% / 0.75);
+    color: white !important; /* Force white text */
+    border-radius: 9999px;
+    box-shadow: 
+      inset 0 -10px 20px hsl(205 86% 70% / 0.75),
+      0px 0px 10px 1px rgba(0, 0, 0, 0.1);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(4px);
+    transition: all 250ms;
+    overflow: hidden;
+  }
+
+  .frutiger-aero-badge:hover {
+    box-shadow: 
+      inset 0 -5px 20px hsl(205 86% 70% / 0.75),
+      0px 0px 10px 1px rgba(0, 0, 0, 0.25);
+  }
+
+  .frutiger-aero-badge::before {
+    content: "";
+    position: absolute;
+    width: 90%;
+    height: 45%;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.9), transparent);
+    top: 1px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: 9999px;
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  /* Steam Border Effect */
+  .steam-border {
+    position: relative;
+    background: hsl(var(--card));
+    z-index: 0;
+  }
+
+  .steam-border:before, .steam-border:after {
+    content: '';
+    position: absolute;
+    left: -2px;
+    top: -2px;
+    background: linear-gradient(45deg, #fb0094, #0000ff, #00ff00,#ffff00, #ff0000, #fb0094, 
+      #0000ff, #00ff00,#ffff00, #ff0000);
+    background-size: 400%;
+    width: calc(100% + 4px);
+    height: calc(100% + 4px);
+    z-index: -1;
+    animation: steam 20s linear infinite;
+    border-radius: 12px;
+  }
+
+  @keyframes steam {
+    0% {
+      background-position: 0 0;
+    }
+    50% {
+      background-position: 400% 0;
+    }
+    100% {
+      background-position: 0 0;
+    }
+  }
+
+  .steam-border:after {
+    filter: blur(50px);
   }
 }

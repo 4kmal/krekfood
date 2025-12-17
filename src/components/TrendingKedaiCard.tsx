@@ -19,7 +19,7 @@ const TRENDING_KEDAI: Kedai[] = [
     reviews: [],
     rating: 4.8,
     totalReviews: 2463,
-    thumbnail: '',
+    thumbnail: 'https://img.freepik.com/free-photo/kebab-platter-with-tikka-lula-chicken-vegetable-kebabs_140725-256.jpg?w=740',
   },
   {
     id: 'trending-2',
@@ -33,7 +33,7 @@ const TRENDING_KEDAI: Kedai[] = [
     reviews: [],
     rating: 4.9,
     totalReviews: 1041,
-    thumbnail: '',
+    thumbnail: 'https://img.freepik.com/free-photo/tortilla-wrap-with-falafel-fresh-salad-vegan-tacos-vegetarian-healthy-food_2829-6193.jpg?size=626',
   },
   {
     id: 'trending-3',
@@ -47,7 +47,7 @@ const TRENDING_KEDAI: Kedai[] = [
     reviews: [],
     rating: 4.4,
     totalReviews: 1821,
-    thumbnail: '',
+    thumbnail: 'https://img.freepik.com/premium-photo/homemade-chicken-biryani-blue-surface_158388-221.jpg?size=626',
   },
   {
     id: 'trending-4',
@@ -61,7 +61,7 @@ const TRENDING_KEDAI: Kedai[] = [
     reviews: [],
     rating: 4.2,
     totalReviews: 3634,
-    thumbnail: '',
+    thumbnail: 'https://img.freepik.com/free-photo/penne-pasta-tomato-sauce-with-chicken-tomatoes-wooden-table_2829-19744.jpg?size=626',
   },
   {
     id: 'trending-5',
@@ -75,7 +75,7 @@ const TRENDING_KEDAI: Kedai[] = [
     reviews: [],
     rating: 4.5,
     totalReviews: 17266,
-    thumbnail: '',
+    thumbnail: 'https://img.freepik.com/free-photo/turkish-arabic-traditional-ramadan-mix-kebab-plate-kebab-adana-chicken-lamb-beef-lavash-bread-with-sauce-top-view_2829-6169.jpg?size=626',
   },
 ];
 
@@ -148,51 +148,64 @@ export function TrendingKedaiCard({ onKedaiClick }: TrendingKedaiCardProps) {
           onClick={() => handleKedaiClick(currentKedai)}
           className="w-full text-left group"
         >
-          <div className="relative bg-card rounded-lg p-3 hover:shadow-md transition-all duration-200 group-hover:scale-[1.02] before:absolute before:inset-0 before:rounded-lg before:p-[2px] before:bg-gradient-to-r before:from-red-500 before:via-yellow-500 before:to-green-500 before:bg-[length:200%_100%] before:animate-[rainbow_3s_linear_infinite] before:-z-10 after:absolute after:inset-[2px] after:rounded-[6px] after:bg-card after:-z-10">
-            <style>{`
-              @keyframes rainbow {
-                0% { background-position: 0% 50%; }
-                50% { background-position: 100% 50%; }
-                100% { background-position: 0% 50%; }
-              }
-            `}</style>
-            {/* Kedai Info */}
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex-1">
-                <h4 className="font-semibold text-foreground mb-1 group-hover:text-primary transition-colors">
-                  {currentKedai.name}
-                </h4>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-                  <MapPin className="w-3 h-3" />
-                  <span>{currentKedai.area}</span>
+          <div className="steam-border rounded-lg transition-all duration-200 group-hover:scale-[1.02] overflow-hidden">
+            {/* Kedai Image */}
+            <div className="relative w-full h-32 overflow-hidden">
+              {currentKedai.thumbnail ? (
+                <img 
+                  src={currentKedai.thumbnail} 
+                  alt={currentKedai.name}
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-4xl bg-gradient-to-br from-accent/20 to-primary/20">
+                  🍽️
                 </div>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                <div className="flex items-center gap-1 text-sm">
-                  <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-                  <span className="font-medium text-foreground">{currentKedai.rating}</span>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  ({currentKedai.totalReviews?.toLocaleString()})
-                </span>
+              )}
+              {/* Gradient Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+              {/* Rating Badge */}
+              <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-full bg-black/50 backdrop-blur-sm">
+                <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                <span className="text-xs font-medium text-white">{currentKedai.rating}</span>
               </div>
             </div>
+            
+            <div className="bg-card rounded-b-lg p-3 h-full">
+              {/* Kedai Info */}
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex-1">
+                  <h4 className="font-semibold text-foreground mb-1 group-hover:text-primary transition-colors line-clamp-1">
+                    {currentKedai.name}
+                  </h4>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+                    <MapPin className="w-3 h-3" />
+                    <span>{currentKedai.area}</span>
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="text-xs text-muted-foreground">
+                    ({currentKedai.totalReviews?.toLocaleString()} reviews)
+                  </span>
+                </div>
+              </div>
 
-            {/* Tags */}
-            <div className="flex flex-wrap gap-1">
-              {currentKedai.tags.slice(0, 3).map((tag) => (
-                <span
-                  key={tag}
-                  className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
-                >
-                  {tag}
-                </span>
-              ))}
-              <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium flex items-center">
-                {Array.from({ length: (currentKedai.price_level || '$$').length }).map((_, idx) => (
-                  <span key={idx}>💵</span>
+              {/* Tags */}
+              <div className="flex flex-wrap gap-1">
+                {currentKedai.tags.slice(0, 3).map((tag) => (
+                  <span
+                    key={tag}
+                    className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
+                  >
+                    {tag}
+                  </span>
                 ))}
-              </span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium flex items-center">
+                  {Array.from({ length: (currentKedai.price_level || '$$').length }).map((_, idx) => (
+                    <span key={idx}>💵</span>
+                  ))}
+                </span>
+              </div>
             </div>
           </div>
         </button>

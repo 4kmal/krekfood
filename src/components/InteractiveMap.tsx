@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { GoogleMap, LoadScript, Marker, InfoWindow, DirectionsRenderer } from '@react-google-maps/api';
 import { useMap } from '@/contexts/MapContext';
 import type { Kedai } from '@/types/kedai';
@@ -115,6 +115,18 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
   const [isPlacingCustomPin, setIsPlacingCustomPin] = useState(false);
   const [showFlightAnimation, setShowFlightAnimation] = useState(true);
   const [playRouteMode, setPlayRouteMode] = useState(false);
+  
+  // Ref to track timeout for closing info window (prevents blinking on hover)
+  const infoWindowCloseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (infoWindowCloseTimeoutRef.current) {
+        clearTimeout(infoWindowCloseTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Load Google Maps Script
   const onLoad = useCallback((map: google.maps.Map) => {
@@ -305,14 +317,27 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
                 icon={createMarkerIcon(isSelected, isHovered)}
                 onClick={() => handleMarkerClick(kedai)}
                 onMouseOver={() => {
+                  // Clear any pending close timeout
+                  if (infoWindowCloseTimeoutRef.current) {
+                    clearTimeout(infoWindowCloseTimeoutRef.current);
+                    infoWindowCloseTimeoutRef.current = null;
+                  }
                   setHoveredKedai(kedai);
                   setInfoWindowKedai(kedai); // Show info window on hover
                 }}
                 onMouseOut={() => {
                   setHoveredKedai(null);
-                  // Only close info window if not selected
+                  // Only close info window if not selected, with a delay to prevent blinking
                   if (!selectedKedai || selectedKedai.id !== kedai.id) {
-                    setInfoWindowKedai(null);
+                    infoWindowCloseTimeoutRef.current = setTimeout(() => {
+                      setInfoWindowKedai((current) => {
+                        // Only close if still showing this kedai's info window
+                        if (current?.id === kedai.id) {
+                          return null;
+                        }
+                        return current;
+                      });
+                    }, 150);
                   }
                 }}
                 title={kedai.name}
@@ -327,47 +352,93 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
               onCloseClick={handleInfoWindowClose}
               options={infoWindowOptions}
             >
-              <div className="p-4 max-w-xs min-w-[220px]" style={{ color: '#f5f5f5', margin: '-12px' }}>
-                <h3 className="font-bold text-base mb-2" style={{ color: '#ffffff', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>{infoWindowKedai.name}</h3>
-                <div className="space-y-1.5 text-sm">
-                  <div className="flex items-center gap-1.5" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                    <MapPin className="w-3 h-3" />
-                    <span>{infoWindowKedai.area}</span>
+              <div 
+                className="p-5 min-w-[260px] max-w-[300px]" 
+                style={{ 
+                  background: 'transparent',
+                  margin: '-12px',
+                }}
+              >
+                {/* Restaurant Name */}
+                <h3 
+                  className="font-bold text-lg mb-3 pr-6 leading-tight" 
+                  style={{ 
+                    color: '#ffffff',
+                    textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                  }}
+                >
+                  {infoWindowKedai.name}
+                </h3>
+                
+                {/* Info Grid */}
+                <div className="space-y-2.5">
+                  {/* Location */}
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
+                      <MapPin className="w-3.5 h-3.5 text-indigo-400" />
+                    </div>
+                    <span className="text-sm" style={{ color: '#cbd5e1' }}>{infoWindowKedai.area}</span>
                   </div>
+                  
+                  {/* Rating */}
                   {infoWindowKedai.rating && (
-                    <div className="flex items-center gap-1.5">
-                      <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                      <span className="font-medium" style={{ color: '#ffffff' }}>{infoWindowKedai.rating}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                      </div>
+                      <span className="font-semibold text-sm" style={{ color: '#fbbf24' }}>{infoWindowKedai.rating}</span>
                       {infoWindowKedai.totalReviews && (
-                        <span style={{ color: 'rgba(255,255,255,0.6)' }}>({infoWindowKedai.totalReviews})</span>
+                        <span className="text-xs" style={{ color: '#94a3b8' }}>({infoWindowKedai.totalReviews} reviews)</span>
                       )}
                     </div>
                   )}
+                  
+                  {/* Signature Dish */}
                   {infoWindowKedai.signature && (
-                    <p className="text-xs italic" style={{ color: 'rgba(255,255,255,0.8)' }}>🍽️ {infoWindowKedai.signature}</p>
+                    <div className="flex items-start gap-2">
+                      <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-xs">🍽️</span>
+                      </div>
+                      <span className="text-sm italic" style={{ color: '#a5f3fc' }}>{infoWindowKedai.signature}</span>
+                    </div>
                   )}
-                  <p className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.6)' }}>{infoWindowKedai.price_level}</p>
+                  
+                  {/* Price Level */}
+                  {infoWindowKedai.price_level && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                        <span className="text-xs font-bold text-green-400">$</span>
+                      </div>
+                      <span className="text-sm font-medium" style={{ color: '#86efac' }}>{infoWindowKedai.price_level}</span>
+                    </div>
+                  )}
+                  
+                  {/* Distance */}
                   {infoWindowKedai.distanceFormatted && (
-                    <div className="flex items-center gap-1.5" style={{ color: '#93c5fd' }}>
-                      <Navigation className="w-3 h-3" />
-                      <span className="text-xs font-medium">{infoWindowKedai.distanceFormatted} away</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                        <Navigation className="w-3.5 h-3.5 text-blue-400" />
+                      </div>
+                      <span className="text-sm font-medium" style={{ color: '#93c5fd' }}>{infoWindowKedai.distanceFormatted} away</span>
                     </div>
                   )}
                 </div>
+                
+                {/* Action Button */}
                 <button
-                  className="w-full mt-3 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all hover:scale-[1.02]"
+                  className="w-full mt-4 py-2.5 px-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                   style={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.15)', 
+                    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
                     color: '#ffffff',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    backdropFilter: 'blur(4px)'
+                    boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
+                    border: 'none'
                   }}
                   onClick={() => {
                     setSelectedKedai(infoWindowKedai);
                     setShowDirections(true);
                   }}
                 >
-                  <Navigation className="w-3 h-3" />
+                  <Navigation className="w-4 h-4" />
                   Get Directions
                 </button>
               </div>
@@ -397,7 +468,7 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
       />
 
       {/* Map Controls Overlay */}
-      <div className="absolute left-4 bg-card/95 backdrop-blur-sm rounded-lg shadow-lg p-3 space-y-2" style={{ bottom: '160px', minWidth: '140px', width: '150px' }}>
+      <div className="absolute left-4 bg-card/95 backdrop-blur-sm rounded-lg shadow-lg p-3 space-y-2" style={{ bottom: '200px', minWidth: '140px', width: '150px' }}>
         <Button
           size="sm"
           variant={isPlacingCustomPin ? 'default' : 'outline'}
