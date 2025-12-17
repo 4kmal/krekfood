@@ -126,7 +126,7 @@ export function KedaiVibeCheck({ kedai }: KedaiVibeCheckProps) {
             <Loader2 className="w-4 h-4 animate-spin text-primary" />
             <div className="absolute inset-0 bg-primary/30 rounded-full blur-sm" />
           </div>
-          <span className="font-medium text-foreground">Analyzing vibe...</span>
+          <span className="font-medium text-foreground">Checking Kracked Meter...</span>
         </div>
         <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
           <div 
