@@ -363,7 +363,7 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
                 <h3 
                   className="font-bold text-lg mb-3 pr-6 leading-tight" 
                   style={{ 
-                    color: '#ffffff',
+                    color: 'rgba(50, 42, 42, 1)',
                     textShadow: '0 2px 4px rgba(0,0,0,0.3)'
                   }}
                 >

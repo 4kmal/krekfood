@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Star, ExternalLink, Share2, ThumbsUp, Navigation, Bookmark, BookmarkCheck, Copy, MessageCircle, Send } from 'lucide-react';
+import { MapPin, Star, ExternalLink, Share2, ThumbsUp, Navigation, Bookmark, BookmarkCheck, Copy, MessageCircle, Send, Flame, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Kedai, Review } from '@/types/kedai';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { KedaiVibeCheck } from './KedaiVibeCheck';
+import { generateMenu } from '@/utils/menuGenerator';
 
 interface KedaiDetailSheetProps {
   kedai: Kedai;
@@ -228,8 +229,9 @@ export function KedaiDetailSheet({ kedai, foodImage, open, onClose }: KedaiDetai
 
             {/* Tabs */}
             <Tabs defaultValue="overview" className="w-full mt-4">
-              <TabsList className="w-full grid grid-cols-2 mb-3">
+              <TabsList className="w-full grid grid-cols-3 mb-3">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="menu">Menu</TabsTrigger>
                 <TabsTrigger value="reviews">Reviews ({reviews.length})</TabsTrigger>
               </TabsList>
 
@@ -294,6 +296,58 @@ export function KedaiDetailSheet({ kedai, foodImage, open, onClose }: KedaiDetai
                     </div>
                   </div>
                 )}
+              </TabsContent>
+
+              {/* Food Menu Tab */}
+              <TabsContent value="menu" className="space-y-3 mt-0">
+                <div className="space-y-3">
+                  {generateMenu(kedai.name, kedai.signature).map((item) => (
+                    <div 
+                      key={item.id}
+                      className="flex gap-3 p-3 bg-muted/50 rounded-xl hover:bg-muted/70 transition-colors"
+                    >
+                      {/* Food Image */}
+                      <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden">
+                        <img 
+                          src={item.image} 
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                        {item.isPopular && (
+                          <div className="absolute top-1 left-1 bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                            <TrendingUp className="w-2.5 h-2.5" />
+                            Hot
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Food Details */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <h4 className="font-semibold text-sm text-foreground leading-tight">
+                            {item.name}
+                            {item.isSpicy && (
+                              <Flame className="w-3.5 h-3.5 text-red-500 inline ml-1" />
+                            )}
+                          </h4>
+                          <span className="text-sm font-bold text-primary flex-shrink-0">
+                            {item.price}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                          {item.description}
+                        </p>
+                        <span className="inline-block text-[10px] text-muted-foreground/70 mt-1.5 px-2 py-0.5 bg-background rounded-full capitalize">
+                          {item.category}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground text-center pt-2">
+                  * Prices and availability may vary
+                </p>
               </TabsContent>
 
               {/* Reviews Tab */}
