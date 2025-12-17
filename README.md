@@ -1,4 +1,4 @@
-# 👨🏻‍💻🍔☕️🥤 KrekFood for Hungry Devs
+# 👨🏻‍💻🍔☕️🥤 KrekFood for Hungry Developers
 
 > Your AI-powered food Recommendation System plug for krackeddevs to fill their fuel after a late night coding session
 
