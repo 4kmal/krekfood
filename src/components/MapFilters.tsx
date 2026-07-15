@@ -25,7 +25,11 @@ const CATEGORY_OPTIONS = [
   { value: 'Dessert', label: '🍰 Dessert' },
 ];
 
-export function MapFilters() {
+interface MapFiltersProps {
+  variant?: 'desktop' | 'mobile';
+}
+
+export function MapFilters({ variant = 'desktop' }: MapFiltersProps) {
   const { allKedai, setFilteredKedai } = useMap();
   const [openNowOnly, setOpenNowOnly] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -41,11 +45,8 @@ export function MapFilters() {
     let filtered = [...allKedai];
 
     // Filter by open now (mock - we don't have hours data yet)
-    if (openNowOnly) {
-      // In production, check actual operating hours
-      // For now, just show all
-      filtered = filtered;
-    }
+    // Operating-hours data is not available yet, so the Open Now control is
+    // retained for UI continuity without removing otherwise valid results.
 
     // Filter by categories
     if (selectedCategories.length > 0) {
@@ -75,12 +76,13 @@ export function MapFilters() {
       case 'distance':
         filtered.sort((a, b) => (a.distance || 999999) - (b.distance || 999999));
         break;
-      case 'price':
+      case 'price': {
         const priceValue = (priceLevel: string) => {
           return (priceLevel || '$$').length;
         };
         filtered.sort((a, b) => priceValue(a.price_level) - priceValue(b.price_level));
         break;
+      }
     }
 
     setFilteredKedai(filtered);
@@ -99,19 +101,20 @@ export function MapFilters() {
   };
 
   const activeFiltersCount = (openNowOnly ? 1 : 0) + selectedCategories.length;
+  const isMobile = variant === 'mobile';
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex items-center gap-2 overflow-x-auto">
+    <div className={`flex items-center gap-2 ${isMobile ? 'w-full min-w-0' : ''}`}>
+      <div className={`flex items-center gap-2 overflow-x-auto ${isMobile ? 'w-full pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden' : ''}`}>
         {/* Sort Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="flex-shrink-0">
+            <Button variant="outline" size="sm" className={`flex-shrink-0 ${isMobile ? 'h-9 rounded-full bg-card/95 px-3 shadow-md backdrop-blur' : ''}`}>
               {sortBy === 'trending' && <TrendingUp className="w-4 h-4 mr-2" />}
               {sortBy === 'rating' && <Star className="w-4 h-4 mr-2" />}
               {sortBy === 'distance' && <span className="mr-2">📍</span>}
               {sortBy === 'price' && <DollarSign className="w-4 h-4 mr-2" />}
-              Sort: {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}
+              {isMobile ? sortBy.charAt(0).toUpperCase() + sortBy.slice(1) : `Sort: ${sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}`}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
@@ -137,7 +140,7 @@ export function MapFilters() {
         <Button
           variant={openNowOnly ? 'default' : 'outline'}
           size="sm"
-          className="flex-shrink-0"
+          className={`flex-shrink-0 ${isMobile ? 'h-9 rounded-full bg-card/95 px-3 shadow-md backdrop-blur' : ''}`}
           onClick={() => setOpenNowOnly(!openNowOnly)}
         >
           <Clock className="w-4 h-4 mr-2" />
@@ -147,7 +150,7 @@ export function MapFilters() {
         {/* Category Filter */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="flex-shrink-0 relative">
+            <Button variant="outline" size="sm" className={`flex-shrink-0 relative ${isMobile ? 'h-9 rounded-full bg-card/95 px-3 shadow-md backdrop-blur' : ''}`}>
               <Filter className="w-4 h-4 mr-2" />
               Categories
               {selectedCategories.length > 0 && (
@@ -172,7 +175,7 @@ export function MapFilters() {
       </div>
 
       {/* Results Count */}
-      {allKedai.length > 0 && (
+      {allKedai.length > 0 && !isMobile && (
         <div className="text-xs text-muted-foreground flex-shrink-0 ml-2">
           {allKedai.length} result{allKedai.length !== 1 ? 's' : ''}
         </div>

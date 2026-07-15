@@ -8,6 +8,7 @@ interface ChatInputProps {
   loading: boolean;
   disabled?: boolean;
   showSuggestions?: boolean;
+  mobile?: boolean;
 }
 
 // Custom Kracked icon component
@@ -139,12 +140,13 @@ const SUGGESTION_PAGES = [
   },
 ];
 
-export function ChatInput({ onSend, loading, disabled, showSuggestions = true }: ChatInputProps) {
+export function ChatInput({ onSend, loading, disabled, showSuggestions = true, mobile = false }: ChatInputProps) {
   const [input, setInput] = useState('');
   const [showChips, setShowChips] = useState(true);
   const [suggestionsExpanded, setSuggestionsExpanded] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const suggestionTouchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,6 +176,24 @@ export function ChatInput({ onSend, loading, disabled, showSuggestions = true }:
   }, [loading]);
 
   const currentPageData = SUGGESTION_PAGES[currentPage];
+
+  const handleSuggestionTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    const touch = event.touches[0];
+    suggestionTouchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleSuggestionTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    const start = suggestionTouchStartRef.current;
+    const touch = event.changedTouches[0];
+    suggestionTouchStartRef.current = null;
+    if (!start || !touch) return;
+
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    if (Math.abs(deltaX) < 48 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+    if (deltaX < 0) nextPage();
+    else prevPage();
+  };
 
   return (
     <div className="space-y-3">
@@ -235,12 +255,18 @@ export function ChatInput({ onSend, loading, disabled, showSuggestions = true }:
 
           {/* Suggestion chips */}
           {suggestionsExpanded && (
-            <div className="flex flex-wrap gap-2 animate-slide-down">
+            <div
+              className={mobile
+                ? 'flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 animate-slide-down [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+                : 'flex flex-wrap gap-2 animate-slide-down'}
+              onTouchStart={mobile ? handleSuggestionTouchStart : undefined}
+              onTouchEnd={mobile ? handleSuggestionTouchEnd : undefined}
+            >
               {currentPageData.suggestions.map((suggestion, idx) => (
                 <button
                   key={`${currentPage}-${idx}`}
                   onClick={() => handleSuggestionClick(suggestion.text)}
-                  className={`mobbin-chip opacity-0 animate-stagger-fade stagger-${idx + 1}`}
+                  className={`mobbin-chip opacity-0 animate-stagger-fade stagger-${idx + 1} ${mobile ? 'min-h-11 flex-none snap-start whitespace-nowrap' : ''}`}
                   style={{ animationFillMode: 'forwards' }}
                 >
                   <span>{suggestion.emoji}</span>
@@ -259,13 +285,13 @@ export function ChatInput({ onSend, loading, disabled, showSuggestions = true }:
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="nak makan apa?"
-          className="flex-1 bg-card border-border mobbin-input"
+          className={`flex-1 bg-card border-border mobbin-input ${mobile ? 'h-11 text-base' : ''}`}
           disabled={loading || disabled}
         />
         <Button 
           type="submit" 
           disabled={!input.trim() || loading || disabled}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 press-effect fab"
+          className={`bg-primary hover:bg-primary/90 text-primary-foreground px-4 press-effect fab ${mobile ? 'h-11 min-w-11' : ''}`}
         >
           {loading ? (
             <Loader2 className="w-5 h-5 animate-spin" />

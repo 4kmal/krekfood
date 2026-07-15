@@ -21,6 +21,12 @@ interface MapContextType {
   setMapZoom: (zoom: number) => void;
   showDirections: boolean;
   setShowDirections: (show: boolean) => void;
+  isPlacingCustomPin: boolean;
+  setIsPlacingCustomPin: (placing: boolean) => void;
+  showFlightAnimation: boolean;
+  setShowFlightAnimation: (show: boolean) => void;
+  playRouteMode: boolean;
+  setPlayRouteMode: (playing: boolean) => void;
   allKedai: Kedai[];
   setAllKedai: (kedai: Kedai[]) => void;
   filteredKedai: Kedai[];
@@ -43,6 +49,9 @@ export function MapProvider({ children }: { children: ReactNode }) {
   const [mapCenter, setMapCenter] = useState<MapLocation>(PETRONAS_TOWERS);
   const [mapZoom, setMapZoom] = useState(13);
   const [showDirections, setShowDirections] = useState(false);
+  const [isPlacingCustomPin, setIsPlacingCustomPin] = useState(false);
+  const [showFlightAnimation, setShowFlightAnimation] = useState(true);
+  const [playRouteMode, setPlayRouteMode] = useState(false);
   const [allKedai, setAllKedai] = useState<Kedai[]>([]);
   const [filteredKedai, setFilteredKedai] = useState<Kedai[]>([]);
 
@@ -63,6 +72,12 @@ export function MapProvider({ children }: { children: ReactNode }) {
         setMapZoom,
         showDirections,
         setShowDirections,
+        isPlacingCustomPin,
+        setIsPlacingCustomPin,
+        showFlightAnimation,
+        setShowFlightAnimation,
+        playRouteMode,
+        setPlayRouteMode,
         allKedai,
         setAllKedai,
         filteredKedai,

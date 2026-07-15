@@ -94,9 +94,15 @@ const createMarkerIcon = (isSelected: boolean, isHovered: boolean) => {
 
 interface InteractiveMapProps {
   googleMapsApiKey: string;
+  mobileMode?: boolean;
+  mobileBottomInset?: number;
 }
 
-export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
+export function InteractiveMap({
+  googleMapsApiKey,
+  mobileMode = false,
+  mobileBottomInset = 0,
+}: InteractiveMapProps) {
   const { reportDiagnostic } = useApiDiagnostics();
   const {
     selectedKedai,
@@ -113,15 +119,18 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
     setMapZoom,
     showDirections,
     setShowDirections,
+    isPlacingCustomPin,
+    setIsPlacingCustomPin,
+    showFlightAnimation,
+    setShowFlightAnimation,
+    playRouteMode,
+    setPlayRouteMode,
     filteredKedai,
   } = useMap();
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [infoWindowKedai, setInfoWindowKedai] = useState<Kedai | null>(null);
   const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
-  const [isPlacingCustomPin, setIsPlacingCustomPin] = useState(false);
-  const [showFlightAnimation, setShowFlightAnimation] = useState(true);
-  const [playRouteMode, setPlayRouteMode] = useState(false);
   const [mapFailure, setMapFailure] = useState<string | null>(null);
   
   // Ref to track timeout for closing info window (prevents blinking on hover)
@@ -208,7 +217,7 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
         toast.success('Custom starting point set!');
       }
     },
-    [isPlacingCustomPin, setCustomStartLocation]
+    [isPlacingCustomPin, setCustomStartLocation, setIsPlacingCustomPin]
   );
 
   // Calculate and show directions
@@ -278,15 +287,21 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
       map.panTo({ lat: selectedKedai.lat, lng: selectedKedai.lon });
       map.setZoom(16);
       
-      // Show info window for selected kedai
-      setInfoWindowKedai(selectedKedai);
+      if (mobileMode) {
+        requestAnimationFrame(() => {
+          map.panBy(0, Math.round(mobileBottomInset * 0.35));
+        });
+      } else {
+        // Show info window for selected kedai on desktop.
+        setInfoWindowKedai(selectedKedai);
+      }
       
       // Auto-enable directions if user location or custom location is set
       if (userLocation || customStartLocation) {
         setShowDirections(true);
       }
     }
-  }, [selectedKedai, map, userLocation, customStartLocation, setShowDirections]);
+  }, [selectedKedai, map, userLocation, customStartLocation, setShowDirections, mobileMode, mobileBottomInset]);
 
   // Fit bounds when filtered kedai changes
   useEffect(() => {
@@ -304,17 +319,22 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
         bounds.extend(customStartLocation);
       }
       
-      map.fitBounds(bounds);
+      map.fitBounds(bounds, mobileMode ? {
+        top: 112,
+        right: 24,
+        bottom: mobileBottomInset + 24,
+        left: 24,
+      } : undefined);
     }
-  }, [filteredKedai, map, userLocation, customStartLocation]);
+  }, [filteredKedai, map, userLocation, customStartLocation, mobileMode, mobileBottomInset]);
 
   // Marker click handler
   const handleMarkerClick = useCallback(
     (kedai: Kedai) => {
       setSelectedKedai(kedai);
-      setInfoWindowKedai(kedai);
+      if (!mobileMode) setInfoWindowKedai(kedai);
     },
-    [setSelectedKedai]
+    [mobileMode, setSelectedKedai]
   );
 
   // Info window close handler
@@ -390,9 +410,10 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
           onClick={onMapClick}
           options={{
             streetViewControl: false,
-            mapTypeControl: true,
-            fullscreenControl: true,
-            zoomControl: true,
+            mapTypeControl: !mobileMode,
+            fullscreenControl: !mobileMode,
+            zoomControl: !mobileMode,
+            gestureHandling: mobileMode ? 'greedy' : 'auto',
           }}
         >
           {/* User Location Marker */}
@@ -440,7 +461,7 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
                 position={{ lat: kedai.lat, lng: kedai.lon }}
                 icon={createMarkerIcon(isSelected, isHovered)}
                 onClick={() => handleMarkerClick(kedai)}
-                onMouseOver={() => {
+                onMouseOver={mobileMode ? undefined : () => {
                   // Clear any pending close timeout
                   if (infoWindowCloseTimeoutRef.current) {
                     clearTimeout(infoWindowCloseTimeoutRef.current);
@@ -449,7 +470,7 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
                   setHoveredKedai(kedai);
                   setInfoWindowKedai(kedai); // Show info window on hover
                 }}
-                onMouseOut={() => {
+                onMouseOut={mobileMode ? undefined : () => {
                   setHoveredKedai(null);
                   // Only close info window if not selected, with a delay to prevent blinking
                   if (!selectedKedai || selectedKedai.id !== kedai.id) {
@@ -470,7 +491,7 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
           })}
 
           {/* Info Window for selected/hovered marker */}
-          {infoWindowKedai && (
+          {!mobileMode && infoWindowKedai && (
             <InfoWindow
               position={{ lat: infoWindowKedai.lat, lng: infoWindowKedai.lon }}
               onCloseClick={handleInfoWindowClose}
@@ -593,6 +614,7 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
       />
 
       {/* Map Controls Overlay */}
+      {!mobileMode && (
       <div className="absolute left-4 bg-card/95 backdrop-blur-sm rounded-lg shadow-lg p-3 space-y-2" style={{ bottom: '200px', minWidth: '140px', width: '150px' }}>
         <Button
           size="sm"
@@ -656,8 +678,10 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
           </>
         )}
       </div>
+      )}
 
       {/* Map Legend */}
+      {!mobileMode && (
       <div className="absolute bottom-4 left-4 bg-card/95 backdrop-blur-sm rounded-lg shadow-lg p-3">
         <h4 className="text-xs font-semibold mb-2">Map Legend</h4>
         <div className="space-y-1.5 text-xs">
@@ -695,6 +719,7 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

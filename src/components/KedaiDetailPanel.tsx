@@ -22,9 +22,10 @@ interface KedaiDetailPanelProps {
   kedai: Kedai;
   foodImage: string | null;
   onClose: () => void;
+  mobile?: boolean;
 }
 
-export function KedaiDetailPanel({ kedai, foodImage, onClose }: KedaiDetailPanelProps) {
+export function KedaiDetailPanel({ kedai, foodImage, onClose, mobile = false }: KedaiDetailPanelProps) {
   const { user } = useAuth();
   const { addBookmark, removeBookmark, isBookmarked } = useBookmarks();
   const { setShowDirections, userLocation, customStartLocation } = useMap();
@@ -94,7 +95,7 @@ export function KedaiDetailPanel({ kedai, foodImage, onClose }: KedaiDetailPanel
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-background border-l border-border">
+    <div className={`w-full h-full flex flex-col bg-background border-l border-border ${mobile ? '[&_button]:min-h-11' : ''}`}>
       {/* Header with close button */}
       <div className="flex-shrink-0 flex items-center justify-between p-3 border-b border-border">
         <h2 className="text-sm font-semibold text-muted-foreground">Restaurant Details</h2>
@@ -103,7 +104,7 @@ export function KedaiDetailPanel({ kedai, foodImage, onClose }: KedaiDetailPanel
           size="icon"
           onClick={onClose}
           aria-label="Close restaurant details"
-          className="h-8 w-8"
+          className={mobile ? 'h-11 w-11' : 'h-8 w-8'}
         >
           <X className="w-4 h-4" />
         </Button>

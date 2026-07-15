@@ -12,11 +12,13 @@ import { KedaiDetailPanel } from '@/components/KedaiDetailPanel';
 import { KedaiDetailEmptyState } from '@/components/KedaiDetailEmptyState';
 import { ApiDiagnosticsIndicator } from '@/components/ApiDiagnosticsIndicator';
 import { ChatAiModeBar } from '@/components/ChatAiModeBar';
+import { MobileChatWorkspace } from '@/components/MobileChatWorkspace';
 import { useAuth } from '@/hooks/useAuth';
 import { useApiDiagnostics } from '@/hooks/useApiDiagnostics';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { useTheme } from '@/components/ThemeProvider';
 import { useMap } from '@/contexts/MapContext';
+import { useMobileViewport } from '@/hooks/useMobileViewport';
 import { Loader2, Moon, Sun, Filter, X, MapPin, Navigation, User, LogOut, Bookmark, Map } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -98,7 +100,7 @@ const Index = () => {
   const navigate = useNavigate();
   const { user, signOut, session, loading: authLoading } = useAuth();
   const { reportDiagnostic } = useApiDiagnostics();
-  const { bookmarks } = useBookmarks();
+  const { bookmarks, loading: bookmarksLoading, removeBookmark } = useBookmarks();
   const { resolvedTheme, setTheme } = useTheme();
   const { 
     selectedKedai, 
@@ -134,6 +136,7 @@ const Index = () => {
   const [showLocationFallback, setShowLocationFallback] = useState(false);
   const [showMapView, setShowMapView] = useState(getInitialMapVisibility);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isMobileViewport = useMobileViewport();
 
   // Get Google Maps API key from env
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
@@ -509,6 +512,78 @@ const Index = () => {
       setMapCenter({ lat: selectedKedai.lat, lng: selectedKedai.lon });
     }
   }, [selectedKedai, setMapCenter]);
+
+  if (isMobileViewport) {
+    return (
+      <>
+        <MobileChatWorkspace
+          googleMapsApiKey={googleMapsApiKey}
+          messages={messages}
+          loading={loading}
+          messagesEndRef={messagesEndRef}
+          onSend={sendMessage}
+          aiMode={aiMode}
+          models={aiModels}
+          selectedModel={selectedAiModel}
+          staleModel={staleAiModel}
+          loadingModels={aiModelsLoading}
+          modelsError={aiModelsError}
+          onModeChange={setAiMode}
+          onModelChange={(model) => {
+            setStaleAiModel(null);
+            setSelectedAiModel(model);
+          }}
+          onRefreshModels={() => void loadAiModels(true)}
+          budget={budget}
+          cuisine={cuisine}
+          budgetOptions={BUDGET_OPTIONS}
+          cuisineOptions={CUISINE_OPTIONS}
+          onBudgetChange={setBudget}
+          onCuisineChange={setCuisine}
+          userLocation={userLocation}
+          locationName={locationName}
+          locationLoading={locationLoading}
+          onRequestLocation={handleLocationRequest}
+          onClearLocation={clearLocation}
+          onClearSearchFilters={clearFilters}
+          bookmarks={bookmarks}
+          bookmarksLoading={bookmarksLoading}
+          onRemoveBookmark={removeBookmark}
+          userEmail={user?.email}
+          onSignOut={signOut}
+        />
+
+        <LocationPermissionDialog
+          open={showLocationDialog}
+          onClose={() => setShowLocationDialog(false)}
+          onAllow={getCurrentLocation}
+          loading={locationLoading}
+        />
+
+        <LocationFallbackDialog
+          open={showLocationFallback}
+          onClose={() => {
+            setShowLocationFallback(false);
+            setPendingMessage(null);
+          }}
+          pendingMessage={pendingMessage}
+          onAreaSelect={(area) => {
+            if (area && pendingMessage) {
+              const modifiedMessage = pendingMessage.replace(
+                /near me|nearby|dekat sini|sekitar sini|near here|around here|berdekatan/gi,
+                `kat ${area}`
+              );
+              processSendMessage(modifiedMessage);
+            } else if (pendingMessage) {
+              processSendMessage(pendingMessage);
+            }
+            setPendingMessage(null);
+            setShowLocationFallback(false);
+          }}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-background">
