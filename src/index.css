@@ -226,80 +226,6 @@
     border-color: hsl(160, 48%, 49%) !important;
   }
 
-  /* Google Maps InfoWindow Dark Theme */
-  .gm-style .gm-style-iw-c,
-  .gm-style-iw.gm-style-iw-c,
-  .gm-style .gm-style-iw {
-    background: rgba(63, 93, 120, 1) !important;
-    background-color: rgba(63, 93, 120, 1) !important;
-    color: #f8fafc !important;
-    padding: 0 !important;
-    border-radius: 16px !important;
-    overflow: visible !important;
-    border: 1px solid rgba(99, 102, 241, 0.3) !important;
-    box-shadow: 
-      0 20px 40px rgba(0, 0, 0, 0.5),
-      0 0 0 1px rgba(255, 255, 255, 0.1),
-      inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
-  }
-
-  .gm-style-iw-d {
-    overflow: hidden !important;
-    max-height: none !important;
-    background: rgba(63, 93, 120, 1) !important;
-    background-color: rgba(63, 93, 120, 1) !important;
-  }
-
-  /* InfoWindow content wrapper */
-  .gm-style-iw-d > div {
-    background: rgba(63, 93, 120, 1) !important;
-    background-color: rgba(63, 93, 120, 1) !important;
-  }
-
-  /* InfoWindow arrow/tail */
-  .gm-style-iw-tc {
-    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3)) !important;
-  }
-
-  .gm-style-iw-tc::after {
-    background: rgba(63, 93, 120, 1) !important;
-    background-color: rgba(63, 93, 120, 1) !important;
-  }
-
-  .gm-style-iw-t::after {
-    background: rgba(63, 93, 120, 1) !important;
-    background-color: rgba(63, 93, 120, 1) !important;
-  }
-
-  /* Google Maps InfoWindow close button */
-  .gm-style-iw button.gm-ui-hover-effect {
-    top: 8px !important;
-    right: 8px !important;
-    opacity: 0.7;
-    background: rgba(255, 255, 255, 0.1) !important;
-    border-radius: 50% !important;
-    width: 28px !important;
-    height: 28px !important;
-    transition: all 0.2s ease !important;
-  }
-
-  .gm-style-iw button.gm-ui-hover-effect:hover {
-    opacity: 1;
-    background: rgba(239, 68, 68, 0.8) !important;
-    transform: scale(1.1) !important;
-  }
-
-  .gm-style-iw button.gm-ui-hover-effect > span {
-    background-color: #ffffff !important;
-    margin: 6px !important;
-  }
-
-  /* Google Maps InfoWindow Button Styling */
-  .gm-style-iw button[class*="bg-primary"] {
-    background-color: rgba(99, 102, 241, 0.9) !important;
-    color: rgba(255, 255, 255, 1) !important;
-  }
-
   /* Flight Animation Styles */
   @keyframes marchingAnts {
     from {
@@ -507,4 +433,68 @@
   .steam-border:after {
     filter: blur(50px);
   }
+}
+
+/* Google Maps InfoWindow lives outside Tailwind layers so it overrides Maps' injected styles. */
+.gm-style .gm-style-iw-c,
+.gm-style-iw.gm-style-iw-c,
+.gm-style .gm-style-iw {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  padding: 0 !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 16px !important;
+  overflow: visible !important;
+  box-shadow:
+    0 20px 45px rgba(15, 23, 42, 0.24),
+    0 4px 12px rgba(15, 23, 42, 0.12) !important;
+}
+
+.gm-style-iw-d {
+  overflow: hidden !important;
+  max-height: none !important;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border-radius: 16px !important;
+}
+
+.gm-style-iw-d > div {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+}
+
+.gm-style-iw-tc {
+  filter: drop-shadow(0 4px 5px rgba(15, 23, 42, 0.2)) !important;
+}
+
+.gm-style-iw-tc::after,
+.gm-style-iw-t::after {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+}
+
+.gm-style .gm-style-iw-c button.gm-ui-hover-effect {
+  top: 8px !important;
+  right: 8px !important;
+  width: 40px !important;
+  height: 40px !important;
+  opacity: 1 !important;
+  background: #f1f5f9 !important;
+  border-radius: 50% !important;
+  transition: background-color 0.2s ease, transform 0.2s ease !important;
+}
+
+.gm-style .gm-style-iw-c button.gm-ui-hover-effect:hover {
+  background: #e2e8f0 !important;
+  transform: scale(1.05) !important;
+}
+
+.gm-style .gm-style-iw-c button.gm-ui-hover-effect > span {
+  background-color: #334155 !important;
+  margin: 10px !important;
+}
+
+.krekfood-map-tooltip {
+  font-family: inherit;
 }

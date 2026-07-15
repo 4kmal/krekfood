@@ -102,6 +102,7 @@ export function KedaiDetailPanel({ kedai, foodImage, onClose }: KedaiDetailPanel
           variant="ghost"
           size="icon"
           onClick={onClose}
+          aria-label="Close restaurant details"
           className="h-8 w-8"
         >
           <X className="w-4 h-4" />

@@ -71,7 +71,12 @@ const createPinSvg = (color: string, isHovered: boolean, isSelected: boolean) =>
 // Custom marker icons
 const createMarkerIcon = (isSelected: boolean, isHovered: boolean) => {
   // Check if google maps is loaded
-  if (typeof google === 'undefined' || !google.maps) {
+  if (
+    typeof google === 'undefined' ||
+    !google.maps ||
+    typeof google.maps.Size !== 'function' ||
+    typeof google.maps.Point !== 'function'
+  ) {
     return undefined;
   }
   
@@ -335,7 +340,11 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
 
   // Info window offset to position it above the marker
   const infoWindowOptions = useMemo(() => {
-    if (typeof google === 'undefined' || !google.maps) {
+    if (
+      typeof google === 'undefined' ||
+      !google.maps ||
+      typeof google.maps.Size !== 'function'
+    ) {
       return {};
     }
     return {
@@ -387,7 +396,11 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
           }}
         >
           {/* User Location Marker */}
-          {userLocation && typeof google !== 'undefined' && google.maps && (
+          {userLocation &&
+            typeof google !== 'undefined' &&
+            google.maps &&
+            typeof google.maps.Size === 'function' &&
+            typeof google.maps.Point === 'function' && (
             <Marker
               position={userLocation}
               icon={{
@@ -400,7 +413,11 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
           )}
 
           {/* Custom Start Location Marker */}
-          {customStartLocation && typeof google !== 'undefined' && google.maps && (
+          {customStartLocation &&
+            typeof google !== 'undefined' &&
+            google.maps &&
+            typeof google.maps.Size === 'function' &&
+            typeof google.maps.Point === 'function' && (
             <Marker
               position={customStartLocation}
               icon={{
@@ -459,83 +476,84 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
               onCloseClick={handleInfoWindowClose}
               options={infoWindowOptions}
             >
-              <div 
-                className="p-5 min-w-[260px] max-w-[300px]" 
-                style={{ 
-                  background: 'transparent',
-                  margin: '-12px',
-                }}
-              >
+              <div className="krekfood-map-tooltip box-border w-[280px] max-w-[calc(100vw-48px)] bg-white p-5 pr-10 text-slate-900 sm:w-[300px]">
                 {/* Restaurant Name */}
-                <h3 
-                  className="font-bold text-lg mb-3 pr-6 leading-tight" 
-                  style={{ 
-                    color: 'rgba(50, 42, 42, 1)',
-                    textShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                  }}
-                >
+                <h3 className="mb-4 break-words text-lg font-bold leading-snug text-slate-900">
                   {infoWindowKedai.name}
                 </h3>
                 
                 {/* Info Grid */}
-                <div className="space-y-2.5">
+                <div className="space-y-3">
                   {/* Location */}
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
-                      <MapPin className="w-3.5 h-3.5 text-indigo-400" />
+                  {infoWindowKedai.area && (
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100">
+                        <MapPin className="h-4 w-4 text-indigo-700" />
+                      </div>
+                      <span className="min-w-0 break-words text-sm font-medium text-slate-700">
+                        {infoWindowKedai.area}
+                      </span>
                     </div>
-                    <span className="text-sm" style={{ color: '#cbd5e1' }}>{infoWindowKedai.area}</span>
-                  </div>
+                  )}
                   
                   {/* Rating */}
                   {infoWindowKedai.rating && (
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-amber-100">
+                        <Star className="h-4 w-4 fill-amber-500 text-amber-600" />
                       </div>
-                      <span className="font-semibold text-sm" style={{ color: '#fbbf24' }}>{infoWindowKedai.rating}</span>
+                      <span className="text-sm font-bold text-amber-700">{infoWindowKedai.rating}</span>
                       {infoWindowKedai.totalReviews && (
-                        <span className="text-xs" style={{ color: '#94a3b8' }}>({infoWindowKedai.totalReviews} reviews)</span>
+                        <span className="text-xs font-medium text-slate-500">
+                          ({infoWindowKedai.totalReviews} reviews)
+                        </span>
                       )}
                     </div>
                   )}
                   
                   {/* Signature Dish */}
                   {infoWindowKedai.signature && (
-                    <div className="flex items-start gap-2">
-                      <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <div className="flex items-start gap-2.5">
+                      <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-cyan-100">
                         <span className="text-xs">🍽️</span>
                       </div>
-                      <span className="text-sm italic" style={{ color: '#a5f3fc' }}>{infoWindowKedai.signature}</span>
+                      <span className="break-words text-sm italic leading-5 text-slate-700">
+                        {infoWindowKedai.signature}
+                      </span>
                     </div>
                   )}
                   
                   {/* Price Level */}
                   {infoWindowKedai.price_level && (
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                        <span className="text-xs font-bold text-green-400">$</span>
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                        <span className="text-xs font-bold text-emerald-700">$</span>
                       </div>
-                      <span className="text-sm font-medium" style={{ color: '#86efac' }}>{infoWindowKedai.price_level}</span>
+                      <span className="text-sm font-semibold text-emerald-700">
+                        {infoWindowKedai.price_level}
+                      </span>
                     </div>
                   )}
                   
                   {/* Distance */}
                   {infoWindowKedai.distanceFormatted && (
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                        <Navigation className="w-3.5 h-3.5 text-blue-400" />
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-blue-100">
+                        <Navigation className="h-4 w-4 text-blue-700" />
                       </div>
-                      <span className="text-sm font-medium" style={{ color: '#93c5fd' }}>{infoWindowKedai.distanceFormatted} away</span>
+                      <span className="text-sm font-medium text-slate-700">
+                        {infoWindowKedai.distanceFormatted} away
+                      </span>
                     </div>
                   )}
                 </div>
                 
                 {/* Action Button */}
                 <button
-                  className="w-full mt-4 py-2.5 px-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                  type="button"
+                  className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white transition-all duration-200 hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2 active:scale-[0.98]"
                   style={{ 
-                    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                    background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
                     color: '#ffffff',
                     boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
                     border: 'none'

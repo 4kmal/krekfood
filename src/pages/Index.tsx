@@ -9,6 +9,7 @@ import { TrendingKedaiCard } from '@/components/TrendingKedaiCard';
 import { InteractiveMap } from '@/components/InteractiveMap';
 import { MapFilters } from '@/components/MapFilters';
 import { KedaiDetailPanel } from '@/components/KedaiDetailPanel';
+import { KedaiDetailEmptyState } from '@/components/KedaiDetailEmptyState';
 import { ApiDiagnosticsIndicator } from '@/components/ApiDiagnosticsIndicator';
 import { ChatAiModeBar } from '@/components/ChatAiModeBar';
 import { useAuth } from '@/hooks/useAuth';
@@ -66,6 +67,7 @@ const CUISINE_OPTIONS = [
 
 const CHAT_AI_MODE_STORAGE_KEY = 'krekfood-chat-ai-mode';
 const CHAT_AI_MODEL_STORAGE_KEY = 'krekfood-chat-ai-model';
+const CHAT_MAP_VISIBILITY_STORAGE_KEY = 'krekfood-chat-map-visible';
 
 function getStoredAiMode(): ChatAiMode {
   const stored = localStorage.getItem(CHAT_AI_MODE_STORAGE_KEY);
@@ -74,6 +76,22 @@ function getStoredAiMode(): ChatAiMode {
 
 function getStoredAiModel(): string {
   return localStorage.getItem(CHAT_AI_MODEL_STORAGE_KEY) || DEFAULT_NINE_ROUTER_MODEL;
+}
+
+function getInitialMapVisibility(): boolean {
+  if (typeof window === 'undefined') return false;
+
+  try {
+    const stored = window.localStorage.getItem(CHAT_MAP_VISIBILITY_STORAGE_KEY);
+    if (stored === 'true') return true;
+    if (stored === 'false') return false;
+  } catch {
+    // Storage can be unavailable in privacy-restricted browser contexts.
+  }
+
+  return typeof window.matchMedia === 'function'
+    ? window.matchMedia('(min-width: 1024px)').matches
+    : false;
 }
 
 const Index = () => {
@@ -114,11 +132,25 @@ const Index = () => {
   const [locationName, setLocationName] = useState<string | null>(null);
   const [showLocationDialog, setShowLocationDialog] = useState(false);
   const [showLocationFallback, setShowLocationFallback] = useState(false);
-  const [showMapView, setShowMapView] = useState(false);
+  const [showMapView, setShowMapView] = useState(getInitialMapVisibility);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Get Google Maps API key from env
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+
+  const toggleMapView = () => {
+    setShowMapView((currentlyVisible) => {
+      const nextVisibility = !currentlyVisible;
+
+      try {
+        window.localStorage.setItem(CHAT_MAP_VISIBILITY_STORAGE_KEY, String(nextVisibility));
+      } catch {
+        // The current view still changes even when the preference cannot be stored.
+      }
+
+      return nextVisibility;
+    });
+  };
 
   useEffect(() => {
     if (!googleMapsApiKey) {
@@ -519,8 +551,9 @@ const Index = () => {
             <Button
               variant={showMapView ? "secondary" : "ghost"}
               size="sm"
-              onClick={() => setShowMapView(!showMapView)}
+              onClick={toggleMapView}
               className="gap-1"
+              aria-pressed={showMapView}
             >
               <Map className="w-4 h-4" />
               {showMapView ? 'Hide' : 'View'} Map
@@ -530,6 +563,7 @@ const Index = () => {
               variant="ghost"
               size="icon"
               onClick={toggleTheme}
+              aria-label={resolvedTheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
               className="text-foreground hover:bg-muted"
             >
               {resolvedTheme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -747,9 +781,14 @@ const Index = () => {
       </header>
 
       {/* Main Content - Three Column Layout */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="relative flex flex-1 overflow-hidden">
         {/* Left Column - Chat */}
-        <div className={`flex flex-col ${showMapView && !selectedKedai ? 'w-1/3' : showMapView && selectedKedai ? 'w-1/4' : 'w-full'} border-r border-border transition-all duration-300`}>
+        <div
+          data-testid="chat-column"
+          className={`flex flex-col border-r border-border transition-all duration-300 ${
+            showMapView ? 'hidden w-full lg:flex lg:w-1/4 lg:flex-shrink-0' : 'w-full'
+          }`}
+        >
           {/* Chat Messages */}
           <main className="flex-1 overflow-y-auto px-4 py-4">
             <ChatAiModeBar
@@ -809,7 +848,10 @@ const Index = () => {
 
         {/* Middle Column - Map */}
         {showMapView && (
-          <div className={`${selectedKedai ? 'w-1/2' : 'w-2/3'} flex flex-col transition-all duration-300`}>
+          <div
+            data-testid="map-column"
+            className="flex w-full flex-col transition-all duration-300 lg:w-1/2 lg:flex-shrink-0"
+          >
             <div className="flex-1 relative">
               {googleMapsApiKey ? (
                 <InteractiveMap googleMapsApiKey={googleMapsApiKey} />
@@ -828,15 +870,27 @@ const Index = () => {
           </div>
         )}
 
-        {/* Right Column - Detail Panel (fixed third column) */}
-        {showMapView && selectedKedai && (
-          <div className="w-1/4 flex-shrink-0">
-            <KedaiDetailPanel
-              kedai={selectedKedai}
-              foodImage={selectedKedai.thumbnail || null}
-              onClose={() => setSelectedKedai(null)}
-            />
-          </div>
+        {/* Right Column - Detail Panel on desktop, full-width overlay on smaller screens */}
+        {showMapView && (
+          selectedKedai ? (
+            <div
+              data-testid="detail-column"
+              className="absolute inset-0 z-20 w-full lg:static lg:z-auto lg:w-1/4 lg:flex-shrink-0"
+            >
+              <KedaiDetailPanel
+                kedai={selectedKedai}
+                foodImage={selectedKedai.thumbnail || null}
+                onClose={() => setSelectedKedai(null)}
+              />
+            </div>
+          ) : (
+            <div
+              data-testid="detail-column"
+              className="hidden lg:block lg:w-1/4 lg:flex-shrink-0"
+            >
+              <KedaiDetailEmptyState />
+            </div>
+          )
         )}
       </div>
 
