@@ -20,7 +20,10 @@ api_url = "http://127.0.0.1"
 verify_jwt = false
 
 [functions.chat]
-verify_jwt = false
+verify_jwt = true
+
+[functions.ai-models]
+verify_jwt = true
 
 [functions.generate-food-image]
 verify_jwt = false

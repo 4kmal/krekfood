@@ -1,8 +1,9 @@
 import { Kedai, Review } from '@/types/kedai';
 import { MapPin, Star, CheckCircle, ChevronRight, MessageCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useMap } from '@/contexts/MapContext';
+import { useApiDiagnostics } from '@/hooks/useApiDiagnostics';
+import { ApiDiagnosticError, invokeEdgeFunction } from '@/lib/edge-functions';
 
 interface KedaiCardProps {
   kedai: Kedai;
@@ -12,6 +13,7 @@ export function KedaiCard({ kedai }: KedaiCardProps) {
   const [foodImage, setFoodImage] = useState<string | null>(kedai.thumbnail || null);
   const [imageLoading, setImageLoading] = useState(!kedai.thumbnail);
   const { setSelectedKedai } = useMap();
+  const { reportDiagnostic } = useApiDiagnostics();
 
   useEffect(() => {
     if (kedai.thumbnail) {
@@ -21,22 +23,29 @@ export function KedaiCard({ kedai }: KedaiCardProps) {
 
     async function generateFoodImage() {
       try {
-        const response = await supabase.functions.invoke('generate-food-image', {
+        const { data, diagnostics } = await invokeEdgeFunction<{ imageUrl: string | null }>('generate-food-image', {
           body: { signature: kedai.signature, name: kedai.name }
         });
-        
-        if (response.data?.imageUrl) {
-          setFoodImage(response.data.imageUrl);
+
+        diagnostics.forEach((diagnostic) => {
+          reportDiagnostic({ ...diagnostic, source: 'Food image' });
+        });
+
+        if (data.imageUrl) {
+          setFoodImage(data.imageUrl);
         }
       } catch (error) {
         console.error('Failed to generate food image:', error);
+        if (error instanceof ApiDiagnosticError) {
+          reportDiagnostic({ ...error.diagnostic, source: 'Food image' });
+        }
       } finally {
         setImageLoading(false);
       }
     }
 
     generateFoodImage();
-  }, [kedai.signature, kedai.name, kedai.thumbnail]);
+  }, [kedai.signature, kedai.name, kedai.thumbnail, reportDiagnostic]);
 
   const reviews = kedai.reviews || [];
   const firstReview = reviews[0];

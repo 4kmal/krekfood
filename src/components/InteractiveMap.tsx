@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { GoogleMap, LoadScript, Marker, InfoWindow, DirectionsRenderer } from '@react-google-maps/api';
 import { useMap } from '@/contexts/MapContext';
+import { useApiDiagnostics } from '@/hooks/useApiDiagnostics';
 import type { Kedai } from '@/types/kedai';
-import { MapPin, Navigation, Star, Clock, Plane, Car } from 'lucide-react';
+import { AlertTriangle, MapPin, Navigation, Star, Clock, Plane, Car } from 'lucide-react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { FlightAnimation } from './FlightAnimation';
@@ -91,6 +92,7 @@ interface InteractiveMapProps {
 }
 
 export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
+  const { reportDiagnostic } = useApiDiagnostics();
   const {
     selectedKedai,
     setSelectedKedai,
@@ -115,9 +117,63 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
   const [isPlacingCustomPin, setIsPlacingCustomPin] = useState(false);
   const [showFlightAnimation, setShowFlightAnimation] = useState(true);
   const [playRouteMode, setPlayRouteMode] = useState(false);
+  const [mapFailure, setMapFailure] = useState<string | null>(null);
   
   // Ref to track timeout for closing info window (prevents blinking on hover)
   const infoWindowCloseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const reportMapFailure = useCallback(({
+    service,
+    code,
+    category,
+    message,
+    status,
+    retryable,
+  }: {
+    service: string;
+    code: string;
+    category: 'credentials' | 'permission' | 'quota' | 'network' | 'upstream' | 'unknown';
+    message: string;
+    status?: number;
+    retryable: boolean;
+  }) => {
+    reportDiagnostic({
+      provider: 'google_maps',
+      service,
+      code,
+      category,
+      severity: 'error',
+      message,
+      status,
+      retryable,
+      source: 'Map',
+    });
+  }, [reportDiagnostic]);
+
+  useEffect(() => {
+    const mapsWindow = window as typeof window & { gm_authFailure?: () => void };
+    const previousHandler = mapsWindow.gm_authFailure;
+
+    mapsWindow.gm_authFailure = () => {
+      setMapFailure('Google Maps could not authenticate this website.');
+      reportMapFailure({
+        service: 'maps-javascript',
+        code: 'GOOGLE_MAPS_AUTH_FAILURE',
+        category: 'credentials',
+        message: 'Google Maps authentication failed. Check the key, billing, enabled API, and referrer restrictions.',
+        retryable: false,
+      });
+      previousHandler?.();
+    };
+
+    return () => {
+      if (previousHandler) {
+        mapsWindow.gm_authFailure = previousHandler;
+      } else {
+        delete mapsWindow.gm_authFailure;
+      }
+    };
+  }, [reportMapFailure]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -179,11 +235,36 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
           setDirections(result);
         } else {
           console.error('Directions request failed:', status);
+          if (status === google.maps.DirectionsStatus.OVER_QUERY_LIMIT) {
+            reportMapFailure({
+              service: 'directions',
+              code: 'GOOGLE_DIRECTIONS_QUOTA',
+              category: 'quota',
+              message: 'Google Maps Directions quota was exceeded.',
+              retryable: true,
+            });
+          } else if (status === google.maps.DirectionsStatus.REQUEST_DENIED) {
+            reportMapFailure({
+              service: 'directions',
+              code: 'GOOGLE_DIRECTIONS_REQUEST_DENIED',
+              category: 'permission',
+              message: 'Google Maps denied the Directions request. Check API enablement and key restrictions.',
+              retryable: false,
+            });
+          } else if (status === google.maps.DirectionsStatus.UNKNOWN_ERROR) {
+            reportMapFailure({
+              service: 'directions',
+              code: 'GOOGLE_DIRECTIONS_UNAVAILABLE',
+              category: 'upstream',
+              message: 'Google Maps Directions is temporarily unavailable.',
+              retryable: true,
+            });
+          }
           toast.error('Failed to calculate directions');
         }
       }
     );
-  }, [showDirections, selectedKedai, userLocation, customStartLocation]);
+  }, [showDirections, selectedKedai, userLocation, customStartLocation, reportMapFailure]);
 
   // Zoom to selected kedai and show directions
   useEffect(() => {
@@ -262,9 +343,35 @@ export function InteractiveMap({ googleMapsApiKey }: InteractiveMapProps) {
     };
   }, []);
 
+  if (mapFailure) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-muted p-6">
+        <div className="max-w-sm text-center">
+          <AlertTriangle className="mx-auto mb-3 h-12 w-12 text-destructive" />
+          <p className="text-sm font-semibold text-foreground">Google Maps unavailable</p>
+          <p className="mt-1 text-xs text-muted-foreground">{mapFailure}</p>
+          <p className="mt-2 text-xs text-muted-foreground">Open API diagnostics for the recommended checks.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative w-full h-full">
-      <LoadScript googleMapsApiKey={googleMapsApiKey}>
+      <LoadScript
+        id="krekfood-google-maps-script"
+        googleMapsApiKey={googleMapsApiKey}
+        onError={() => {
+          setMapFailure('The Google Maps script could not be loaded.');
+          reportMapFailure({
+            service: 'maps-javascript',
+            code: 'GOOGLE_MAPS_SCRIPT_LOAD_FAILED',
+            category: 'network',
+            message: 'The Google Maps JavaScript API failed to load.',
+            retryable: true,
+          });
+        }}
+      >
         <GoogleMap
           mapContainerStyle={containerStyle}
           center={mapCenter}

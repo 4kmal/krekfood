@@ -1,4 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import {
+  errorJsonResponse,
+  internalDiagnostic,
+  missingConfigurationDiagnostic,
+  networkDiagnostic,
+  providerFailureDiagnostic,
+} from "../_shared/api-diagnostics.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,38 +22,51 @@ serve(async (req) => {
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     
     if (!geminiApiKey) {
-      throw new Error('GEMINI_API_KEY not configured');
+      return errorJsonResponse(
+        missingConfigurationDiagnostic('gemini', 'food-image-generation', 'GEMINI_API_KEY'),
+        corsHeaders,
+      );
     }
 
     console.log('Generating food image for:', signature, name);
 
     // Generate food image using Gemini Imagen API
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${geminiApiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [{ 
-              text: `Generate a delicious, appetizing food photo of Malaysian dish: "${signature}" from restaurant "${name}". 
-Make it look like a professional food photography shot with warm lighting, shallow depth of field, and mouth-watering presentation. 
+    let response: Response;
+    try {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${geminiApiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [{
+                text: `Generate a delicious, appetizing food photo of Malaysian dish: "${signature}" from restaurant "${name}".
+Make it look like a professional food photography shot with warm lighting, shallow depth of field, and mouth-watering presentation.
 The dish should be the main focus, served on a nice plate with authentic Malaysian style. Ultra high resolution.`
-            }]
+              }]
+            }
+          ],
+          generationConfig: {
+            responseModalities: ['image', 'text'],
           }
-        ],
-        generationConfig: {
-          responseModalities: ['image', 'text'],
-        }
-      }),
-    });
+        }),
+      });
+    } catch (error) {
+      console.error('Image generation network error:', error);
+      return errorJsonResponse(networkDiagnostic('gemini', 'food-image-generation'), corsHeaders, 503);
+    }
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Image generation error:', response.status, errorText);
-      throw new Error(`Image generation failed: ${response.status}`);
+      const errorBody = await response.json().catch(() => ({}));
+      console.error('Image generation error:', response.status, errorBody);
+      return errorJsonResponse(
+        providerFailureDiagnostic('gemini', 'food-image-generation', response.status, errorBody),
+        corsHeaders,
+        response.status,
+      );
     }
 
     const data = await response.json();
@@ -64,7 +84,15 @@ The dish should be the main focus, served on a nice plate with authentic Malaysi
 
     if (!imageUrl) {
       console.error('No image in response:', data);
-      throw new Error('No image generated');
+      return errorJsonResponse({
+        provider: 'gemini',
+        service: 'food-image-generation',
+        code: 'GEMINI_IMAGE_MISSING',
+        category: 'unknown',
+        severity: 'error',
+        message: 'Gemini returned a response without an image.',
+        retryable: true,
+      }, corsHeaders, 502);
     }
 
     console.log('Image generated successfully');
@@ -74,12 +102,6 @@ The dish should be the main focus, served on a nice plate with authentic Malaysi
     });
   } catch (err) {
     console.error('Error generating image:', err);
-    return new Response(JSON.stringify({ 
-      error: err instanceof Error ? err.message : 'Unknown error',
-      imageUrl: null 
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    });
+    return errorJsonResponse(internalDiagnostic('food-image-generation'), corsHeaders);
   }
 });

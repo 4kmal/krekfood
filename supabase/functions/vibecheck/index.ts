@@ -1,4 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import {
+  errorJsonResponse,
+  internalDiagnostic,
+  missingConfigurationDiagnostic,
+  networkDiagnostic,
+  providerFailureDiagnostic,
+  type ApiDiagnosticPayload,
+} from "../_shared/api-diagnostics.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,9 +21,13 @@ serve(async (req) => {
   try {
     const { kedaiName, reviews, rating, priceLevel } = await req.json();
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    const diagnostics: ApiDiagnosticPayload[] = [];
     
     if (!GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY is not configured');
+      return errorJsonResponse(
+        missingConfigurationDiagnostic('gemini', 'vibecheck', 'GEMINI_API_KEY'),
+        corsHeaders,
+      );
     }
 
     console.log(`Analyzing vibe for: ${kedaiName}`);
@@ -48,29 +60,39 @@ ${reviewTexts}
 
 Give me the real vibe check.`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
+    let response: Response;
+    try {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 1024,
           }
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 1024,
-        }
-      }),
-    });
+        }),
+      });
+    } catch (error) {
+      console.error('Gemini network error:', error);
+      return errorJsonResponse(networkDiagnostic('gemini', 'vibecheck'), corsHeaders, 503);
+    }
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Gemini API error:', response.status, errorText);
-      throw new Error(`Gemini API error: ${response.status}`);
+      const errorBody = await response.json().catch(() => ({}));
+      console.error('Gemini API error:', response.status, errorBody);
+      return errorJsonResponse(
+        providerFailureDiagnostic('gemini', 'vibecheck', response.status, errorBody),
+        corsHeaders,
+        response.status,
+      );
     }
 
     const data = await response.json();
@@ -90,6 +112,15 @@ Give me the real vibe check.`;
       }
     } catch (parseError) {
       console.error('Failed to parse Gemini response:', parseError);
+      diagnostics.push({
+        provider: 'gemini',
+        service: 'vibecheck',
+        code: 'GEMINI_RESPONSE_INVALID',
+        category: 'unknown',
+        severity: 'warning',
+        message: 'Gemini returned an invalid vibe-check response; a fallback result was used.',
+        retryable: true,
+      });
       // Fallback response
       vibeCheck = {
         vibeScore: 70,
@@ -102,24 +133,12 @@ Give me the real vibe check.`;
       };
     }
 
-    return new Response(JSON.stringify(vibeCheck), {
+    return new Response(JSON.stringify({ ...vibeCheck, diagnostics }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
     console.error('Error in vibecheck function:', error);
-    return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : 'Unknown error',
-      vibeScore: 0,
-      verdict: "❓ UNKNOWN",
-      summary: "Tak dapat analyze, cuba lagi later.",
-      greenFlags: [],
-      redFlags: [],
-      bestFor: "Unknown",
-      avoidIf: "Unknown"
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return errorJsonResponse(internalDiagnostic('vibecheck'), corsHeaders);
   }
 });

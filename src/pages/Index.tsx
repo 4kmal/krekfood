@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChatMessage } from '@/types/kedai';
 import { ChatBubble } from '@/components/ChatBubble';
@@ -9,14 +9,25 @@ import { TrendingKedaiCard } from '@/components/TrendingKedaiCard';
 import { InteractiveMap } from '@/components/InteractiveMap';
 import { MapFilters } from '@/components/MapFilters';
 import { KedaiDetailPanel } from '@/components/KedaiDetailPanel';
-import { supabase } from '@/integrations/supabase/client';
+import { ApiDiagnosticsIndicator } from '@/components/ApiDiagnosticsIndicator';
+import { ChatAiModeBar } from '@/components/ChatAiModeBar';
 import { useAuth } from '@/hooks/useAuth';
+import { useApiDiagnostics } from '@/hooks/useApiDiagnostics';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { useTheme } from '@/components/ThemeProvider';
 import { useMap } from '@/contexts/MapContext';
 import { Loader2, Moon, Sun, Filter, X, MapPin, Navigation, User, LogOut, Bookmark, Map } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { ApiDiagnosticError, invokeEdgeFunction } from '@/lib/edge-functions';
+import { getConciseDiagnosticMessage, type ApiDiagnosticPayload } from '@/types/api-diagnostics';
+import {
+  DEFAULT_CHAT_AI_MODE,
+  DEFAULT_NINE_ROUTER_MODEL,
+  type ChatAiMode,
+  type ChatModelOption,
+  type ModelsResponse,
+} from '@/types/chat-ai';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,9 +64,22 @@ const CUISINE_OPTIONS = [
   { value: 'vegetarian', label: '🥗 Vegetarian' },
 ];
 
+const CHAT_AI_MODE_STORAGE_KEY = 'krekfood-chat-ai-mode';
+const CHAT_AI_MODEL_STORAGE_KEY = 'krekfood-chat-ai-model';
+
+function getStoredAiMode(): ChatAiMode {
+  const stored = localStorage.getItem(CHAT_AI_MODE_STORAGE_KEY);
+  return stored === 'gemini' || stored === 'nine_router' ? stored : DEFAULT_CHAT_AI_MODE;
+}
+
+function getStoredAiModel(): string {
+  return localStorage.getItem(CHAT_AI_MODEL_STORAGE_KEY) || DEFAULT_NINE_ROUTER_MODEL;
+}
+
 const Index = () => {
   const navigate = useNavigate();
   const { user, signOut, session, loading: authLoading } = useAuth();
+  const { reportDiagnostic } = useApiDiagnostics();
   const { bookmarks } = useBookmarks();
   const { resolvedTheme, setTheme } = useTheme();
   const { 
@@ -76,6 +100,12 @@ const Index = () => {
   
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [loading, setLoading] = useState(false);
+  const [aiMode, setAiMode] = useState<ChatAiMode>(getStoredAiMode);
+  const [selectedAiModel, setSelectedAiModel] = useState(getStoredAiModel);
+  const [aiModels, setAiModels] = useState<ChatModelOption[]>([]);
+  const [aiModelsLoading, setAiModelsLoading] = useState(false);
+  const [aiModelsError, setAiModelsError] = useState<string | null>(null);
+  const [staleAiModel, setStaleAiModel] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [budget, setBudget] = useState('');
   const [cuisine, setCuisine] = useState('');
@@ -89,6 +119,95 @@ const Index = () => {
 
   // Get Google Maps API key from env
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+
+  useEffect(() => {
+    if (!googleMapsApiKey) {
+      reportDiagnostic({
+        provider: 'google_maps',
+        service: 'maps-javascript',
+        code: 'GOOGLE_MAPS_KEY_MISSING',
+        category: 'configuration',
+        severity: 'error',
+        message: 'The Google Maps browser API key is missing.',
+        retryable: false,
+        source: 'Map',
+      });
+    }
+  }, [googleMapsApiKey, reportDiagnostic]);
+
+  const loadAiModels = useCallback(async (refresh = false) => {
+    if (!session?.access_token) return;
+
+    setAiModelsLoading(true);
+    setAiModelsError(null);
+    try {
+      const { data, diagnostics } = await invokeEdgeFunction<ModelsResponse>('ai-models', {
+        body: { refresh },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+
+      diagnostics.forEach((diagnostic) => {
+        reportDiagnostic({ ...diagnostic, source: 'Model selector' });
+      });
+
+      setAiModels(data.models);
+      if (data.models.some((availableModel) => availableModel.id === selectedAiModel)) {
+        setStaleAiModel(null);
+      } else {
+        const fallbackModel = data.models.some((availableModel) => availableModel.id === data.defaultModel)
+          ? data.defaultModel
+          : data.models[0]?.id || DEFAULT_NINE_ROUTER_MODEL;
+        setStaleAiModel(selectedAiModel);
+        setSelectedAiModel(fallbackModel);
+        reportDiagnostic({
+          provider: 'nine_router',
+          service: 'model-selection',
+          code: 'NINE_ROUTER_MODEL_FALLBACK',
+          category: 'not_found',
+          severity: 'warning',
+          message: 'The saved 9Router model is no longer available; the configured fallback was selected.',
+          retryable: false,
+          source: 'Model selector',
+        });
+      }
+    } catch (error) {
+      const diagnostic: ApiDiagnosticPayload = error instanceof ApiDiagnosticError
+        ? error.diagnostic
+        : {
+            provider: 'nine_router',
+            service: 'model-discovery',
+            code: 'NINE_ROUTER_MODELS_UNEXPECTED',
+            category: 'unknown',
+            severity: 'error',
+            message: 'The 9Router model catalog could not be loaded.',
+            retryable: true,
+          };
+      reportDiagnostic({ ...diagnostic, source: 'Model selector' });
+      setAiModelsError(getConciseDiagnosticMessage(diagnostic));
+    } finally {
+      setAiModelsLoading(false);
+    }
+  }, [reportDiagnostic, selectedAiModel, session?.access_token]);
+
+  useEffect(() => {
+    localStorage.setItem(CHAT_AI_MODE_STORAGE_KEY, aiMode);
+  }, [aiMode]);
+
+  useEffect(() => {
+    localStorage.setItem(CHAT_AI_MODEL_STORAGE_KEY, selectedAiModel);
+  }, [selectedAiModel]);
+
+  useEffect(() => {
+    if (
+      aiMode === 'nine_router'
+      && session?.access_token
+      && aiModels.length === 0
+      && !aiModelsLoading
+      && !aiModelsError
+    ) {
+      void loadAiModels();
+    }
+  }, [aiMode, aiModels.length, aiModelsError, aiModelsLoading, loadAiModels, session?.access_token]);
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
@@ -254,102 +373,29 @@ const Index = () => {
       // Get auth token for function call (functions require JWT)
       const authToken = session?.access_token;
       
-      let responseData: unknown = null;
-      let responseError: { message?: string; status?: number; context?: unknown } | null = null;
-      
-      try {
-        const { data, error } = await supabase.functions.invoke('chat', {
-          body: { 
-            message: enhancedContent, 
-            history,
-            filters: { budget, cuisine },
-            location: currentLocation
-          },
-          headers: authToken ? {
-            Authorization: `Bearer ${authToken}`
-          } : {
-            // If no auth, use anon key (might fail if function requires auth)
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || ''
-          }
-        });
+      const { data, diagnostics } = await invokeEdgeFunction<{
+        message?: string;
+        kedai?: unknown[];
+        aiMode?: ChatAiMode;
+        model?: string;
+        diagnostics?: ApiDiagnosticPayload[];
+      }>('chat', {
+        body: {
+          message: enhancedContent,
+          history,
+          filters: { budget, cuisine },
+          location: currentLocation,
+          aiMode,
+          model: aiMode === 'nine_router' ? selectedAiModel : undefined,
+        },
+        headers: authToken
+          ? { Authorization: `Bearer ${authToken}` }
+          : { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '' },
+      });
 
-        console.log('Chat function response:', { data, error });
-
-        if (error) {
-          console.error('Supabase function error:', error);
-          // Check if error has status code
-          const errorStatus = (error as { status?: number; statusCode?: number }).status || 
-                             (error as { status?: number; statusCode?: number }).statusCode ||
-                             (error as { context?: { status?: number } }).context?.status;
-          
-          responseError = {
-            message: error.message || 'Unknown error',
-            status: errorStatus,
-            context: error
-          };
-        } else {
-          responseData = data;
-        }
-      } catch (invokeError) {
-        console.error('Function invoke error:', invokeError);
-        const err = invokeError as { message?: string; status?: number; statusCode?: number; context?: unknown };
-        
-        // Try to extract status from various possible locations
-        const errorStatus = err.status || err.statusCode || 
-                          (err.context as { status?: number })?.status;
-        
-        responseError = {
-          message: err.message || 'Unknown error',
-          status: errorStatus,
-          context: err
-        };
-      }
-
-      // Handle errors with proper status codes
-      if (responseError) {
-        const status = responseError.status;
-        const message = responseError.message || '';
-        const context = responseError.context as { message?: string; error?: string } | undefined;
-        
-        console.error('Function error details:', { status, message, context });
-        
-        // Extract actual error message from context if available
-        const actualError = context?.error || context?.message || message;
-        
-        // Handle specific status codes
-        if (status === 429 || message.includes('429') || message.includes('rate limit') || actualError?.includes('429')) {
-          throw new Error('rate_limit');
-        }
-        
-        if (status === 401 || message.includes('401') || message.includes('unauthorized') || message.includes('jwt')) {
-          throw new Error('unauthorized');
-        }
-        
-        if (status === 404 || message.includes('404') || message.includes('not found')) {
-          throw new Error('function_not_found');
-        }
-        
-        if (status === 500 || message.includes('500') || message.includes('internal')) {
-          // Try to extract error message from response
-          const errorMsg = actualError?.includes('GEMINI_API_KEY') || actualError?.includes('SERPAPI_KEY') || actualError?.includes('GROQ_API_KEY')
-            ? 'api_key_missing'
-            : 'server_error';
-          throw new Error(errorMsg);
-        }
-        
-        // For any other non-2xx status, check if it's rate limit in the actual response
-        if (status && status >= 400 && actualError?.includes('rate limit')) {
-          throw new Error('rate_limit');
-        }
-        
-        throw new Error(message || `Function returned status ${status || 'unknown'}`);
-      }
-
-      if (!responseData) {
-        throw new Error('No data returned from chat function');
-      }
-
-      const data = responseData as { message?: string; kedai?: unknown[]; error?: string };
+      diagnostics.forEach((diagnostic) => {
+        reportDiagnostic({ ...diagnostic, source: 'Chat' });
+      });
       
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -374,35 +420,21 @@ const Index = () => {
       }
     } catch (err) {
       console.error('Chat error details:', err);
-      
-      // More detailed error messages
-      let errorContent = "Alamak, ada masalah teknikal. Cuba lagi ya! 😅";
-      
-      if (err instanceof Error) {
-        const errorMsg = err.message.toLowerCase();
-        
-        if (errorMsg.includes('rate_limit') || errorMsg.includes('429') || errorMsg.includes('non-2xx')) {
-          errorContent = "Alamak, ramai sangat orang tengah guna ni! 😅\n\n**Rate Limit Exceeded** - API dah penuh untuk sekarang.\n\n**Penyelesaian:**\n1. Tunggu 2-5 minit sebelum cuba lagi\n2. Check API quotas:\n   - Gemini: https://aistudio.google.com/app/apikey\n   - SerpAPI: https://serpapi.com/dashboard\n   - Groq: https://console.groq.com/keys\n\nKalau masih error, mungkin perlu upgrade API plan! 💰";
-        } else if (errorMsg.includes('unauthorized') || errorMsg.includes('401')) {
-          errorContent = "Need to login first! 🔐\n\nFunction requires authentication. Please login via the Auth page, then try again.";
-          // Redirect to auth if not logged in
-          if (!user) {
-            setTimeout(() => navigate('/auth'), 2000);
-          }
-        } else if (errorMsg.includes('function_not_found') || errorMsg.includes('404') || errorMsg.includes('not found')) {
-          errorContent = "Chat function tak jumpa. 🔧\n\nFunctions dah deploy? Check:\n1. Supabase Dashboard → Edge Functions\n2. Function 'chat' status ACTIVE\n3. Browser console untuk details";
-        } else if (errorMsg.includes('network') || errorMsg.includes('fetch')) {
-          errorContent = "Internet connection ada masalah. 📶\n\nCheck connection korang dan cuba lagi!";
-        } else if (errorMsg.includes('timeout')) {
-          errorContent = "Request timeout. ⏱️\n\nServer tengah sibuk, cuba lagi dalam beberapa saat!";
-        } else if (errorMsg.includes('api_key_missing') || errorMsg.includes('gemini') || errorMsg.includes('api key') || errorMsg.includes('not configured')) {
-          errorContent = "API keys belum set! 🔑\n\nSet secrets dalam Supabase Dashboard:\n1. Settings → Edge Functions → Secrets\n2. Add: GEMINI_API_KEY, GROQ_API_KEY, SERPAPI_KEY\n\nCheck README.md untuk details!";
-        } else if (errorMsg.includes('server_error') || errorMsg.includes('500')) {
-          errorContent = "Server ada masalah teknikal. 🔧\n\nCuba lagi dalam beberapa saat. Kalau masih error, check:\n1. Supabase Dashboard → Edge Functions → Logs\n2. Browser console untuk details";
-        } else {
-          errorContent = `Error: ${err.message}\n\nCheck browser console untuk details.`;
-        }
-      }
+
+      const diagnostic: ApiDiagnosticPayload = err instanceof ApiDiagnosticError
+        ? err.diagnostic
+        : {
+            provider: 'supabase',
+            service: 'chat',
+            code: 'CHAT_UNEXPECTED_ERROR',
+            category: err instanceof TypeError ? 'network' : 'unknown',
+            severity: 'error',
+            message: 'The chat request failed unexpectedly.',
+            retryable: true,
+          };
+
+      reportDiagnostic({ ...diagnostic, source: 'Chat' });
+      const errorContent = getConciseDiagnosticMessage(diagnostic);
       
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -412,8 +444,7 @@ const Index = () => {
       };
       setMessages(prev => [...prev, errorMessage]);
       
-      // Show toast for debugging
-      toast.error('Chat error - check console for details');
+      toast.error(errorContent);
     } finally {
       setLoading(false);
     }
@@ -494,6 +525,7 @@ const Index = () => {
               <Map className="w-4 h-4" />
               {showMapView ? 'Hide' : 'View'} Map
             </Button>
+            <ApiDiagnosticsIndicator />
             <Button
               variant="ghost"
               size="icon"
@@ -720,6 +752,21 @@ const Index = () => {
         <div className={`flex flex-col ${showMapView && !selectedKedai ? 'w-1/3' : showMapView && selectedKedai ? 'w-1/4' : 'w-full'} border-r border-border transition-all duration-300`}>
           {/* Chat Messages */}
           <main className="flex-1 overflow-y-auto px-4 py-4">
+            <ChatAiModeBar
+              mode={aiMode}
+              models={aiModels}
+              selectedModel={selectedAiModel}
+              staleModel={staleAiModel}
+              loadingModels={aiModelsLoading}
+              modelsError={aiModelsError}
+              disabled={loading}
+              onModeChange={setAiMode}
+              onModelChange={(model) => {
+                setStaleAiModel(null);
+                setSelectedAiModel(model);
+              }}
+              onRefresh={() => void loadAiModels(true)}
+            />
             <div className="space-y-4">
               {/* Trending Kedai Card at top when chat is fresh */}
               {messages.length === 1 && !loading && (
@@ -739,7 +786,10 @@ const Index = () => {
                     <Loader2 className="w-4 h-4 animate-spin text-secondary-foreground" />
                   </div>
                   <div className="bg-card border border-border rounded-2xl rounded-bl-md px-4 py-2.5">
-                    <p className="text-sm text-muted-foreground">Hunting for spots{userLocation ? ' near you' : ''}...</p>
+                    <p className="text-sm text-muted-foreground">
+                      {aiMode === 'nine_router' ? 'Routing through 9Router' : 'Asking Gemini'}
+                      {userLocation ? ' near you' : ''}...
+                    </p>
                   </div>
                 </div>
               )}

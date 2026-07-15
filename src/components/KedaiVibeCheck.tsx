@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Loader2, Sparkles, Flag, ThumbsUp, Users, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
 import type { Kedai } from '@/types/kedai';
+import { useApiDiagnostics } from '@/hooks/useApiDiagnostics';
+import { ApiDiagnosticError, invokeEdgeFunction } from '@/lib/edge-functions';
+import { getConciseDiagnosticMessage } from '@/types/api-diagnostics';
 
 interface VibeCheckResult {
   vibeScore: number;
@@ -19,6 +21,7 @@ interface KedaiVibeCheckProps {
 }
 
 export function KedaiVibeCheck({ kedai }: KedaiVibeCheckProps) {
+  const { reportDiagnostic } = useApiDiagnostics();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<VibeCheckResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +32,7 @@ export function KedaiVibeCheck({ kedai }: KedaiVibeCheckProps) {
     setError(null);
     
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('vibecheck', {
+      const { data, diagnostics } = await invokeEdgeFunction<VibeCheckResult>('vibecheck', {
         body: {
           kedaiName: kedai.name,
           reviews: kedai.reviews || [],
@@ -38,11 +41,18 @@ export function KedaiVibeCheck({ kedai }: KedaiVibeCheckProps) {
         }
       });
 
-      if (fnError) throw fnError;
+      diagnostics.forEach((diagnostic) => {
+        reportDiagnostic({ ...diagnostic, source: 'Vibe check' });
+      });
       setResult(data);
     } catch (err) {
       console.error('VibeCheck error:', err);
-      setError('Failed to analyze vibe. Cuba lagi!');
+      if (err instanceof ApiDiagnosticError) {
+        reportDiagnostic({ ...err.diagnostic, source: 'Vibe check' });
+        setError(getConciseDiagnosticMessage(err.diagnostic));
+      } else {
+        setError('Failed to analyze vibe. Cuba lagi!');
+      }
     } finally {
       setLoading(false);
     }

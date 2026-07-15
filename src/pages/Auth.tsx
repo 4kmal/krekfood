@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/components/ThemeProvider';
+import { ApiDiagnosticsIndicator } from '@/components/ApiDiagnosticsIndicator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Mail, Loader2, ArrowLeft, CheckCircle, AlertCircle, Moon, Sun } from 'lucide-react';
@@ -10,15 +11,39 @@ import { z } from 'zod';
 
 const emailSchema = z.string().email('Please enter a valid email address');
 
+const GoogleIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+    <path
+      fill="#4285F4"
+      d="M21.6 12.23c0-.71-.06-1.4-.18-2.07H12v3.92h5.38a4.6 4.6 0 0 1-2 3.02v2.54h3.24c1.9-1.75 2.98-4.33 2.98-7.41Z"
+    />
+    <path
+      fill="#34A853"
+      d="M12 22c2.7 0 4.98-.9 6.63-2.36l-3.24-2.54c-.9.6-2.05.96-3.39.96-2.61 0-4.82-1.76-5.61-4.13H3.04v2.62A10 10 0 0 0 12 22Z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M6.39 13.93A6.02 6.02 0 0 1 6.08 12c0-.67.11-1.32.31-1.93V7.45H3.04A10 10 0 0 0 2 12c0 1.61.39 3.14 1.04 4.55l3.35-2.62Z"
+    />
+    <path
+      fill="#EA4335"
+      d="M12 5.94c1.47 0 2.79.51 3.83 1.5l2.87-2.88A9.64 9.64 0 0 0 12 2a10 10 0 0 0-8.96 5.45l3.35 2.62C7.18 7.7 9.39 5.94 12 5.94Z"
+    />
+  </svg>
+);
+
 export default function Auth() {
   const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const { signInWithMagicLink, user } = useAuth();
+  const [authErrorTitle, setAuthErrorTitle] = useState('Sign-in Failed');
+  const { signInWithMagicLink, signInWithGoogle, user } = useAuth();
   const { resolvedTheme, setTheme } = useTheme();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const authBusy = emailLoading || googleLoading;
 
   // Check for auth errors from URL
   useEffect(() => {
@@ -27,13 +52,20 @@ export default function Auth() {
     
     if (error) {
       let friendlyMessage = 'Authentication failed. Please try again.';
+      let friendlyTitle = 'Sign-in Failed';
       
-      if (errorDescription?.includes('invalid') || errorDescription?.includes('expired')) {
+      if (error === 'access_denied') {
+        friendlyTitle = 'Google Sign-in Cancelled';
+        friendlyMessage = 'Google sign-in was cancelled or denied. Please try again.';
+      } else if (errorDescription?.includes('invalid') || errorDescription?.includes('expired')) {
+        friendlyTitle = 'Link Expired';
         friendlyMessage = 'Magic link sudah expired atau dah guna. Cuba request yang baru.';
       } else if (errorDescription?.includes('signature')) {
+        friendlyTitle = 'Invalid Link';
         friendlyMessage = 'Link tak sah. Cuba request magic link baru.';
       }
       
+      setAuthErrorTitle(friendlyTitle);
       setAuthError(friendlyMessage);
       toast.error(friendlyMessage);
     }
@@ -57,7 +89,7 @@ export default function Auth() {
       return;
     }
 
-    setLoading(true);
+    setEmailLoading(true);
     
     const { error } = await signInWithMagicLink(email);
     
@@ -69,13 +101,28 @@ export default function Auth() {
       }
       
       toast.error(friendlyMessage);
-      setLoading(false);
+      setEmailLoading(false);
       return;
     }
 
     setEmailSent(true);
-    setLoading(false);
+    setEmailLoading(false);
     toast.success('Magic link sent! Check your email.');
+  };
+
+  const handleGoogleSignIn = async () => {
+    setAuthError(null);
+    setGoogleLoading(true);
+
+    const { error } = await signInWithGoogle();
+
+    if (error) {
+      const friendlyMessage = error.message || 'Unable to start Google sign-in. Please try again.';
+      setAuthErrorTitle('Google Sign-in Failed');
+      setAuthError(friendlyMessage);
+      toast.error(friendlyMessage);
+      setGoogleLoading(false);
+    }
   };
 
   const toggleTheme = () => {
@@ -99,14 +146,17 @@ export default function Auth() {
               </div>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleTheme}
-            className="text-foreground hover:bg-muted"
-          >
-            {resolvedTheme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </Button>
+          <div className="flex items-center gap-1">
+            <ApiDiagnosticsIndicator />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="text-foreground hover:bg-muted"
+            >
+              {resolvedTheme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -118,7 +168,7 @@ export default function Auth() {
             <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-start gap-3 animate-fade-up">
               <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-destructive">Link Expired</p>
+                <p className="text-sm font-medium text-destructive">{authErrorTitle}</p>
                 <p className="text-xs text-muted-foreground mt-1">{authError}</p>
               </div>
             </div>
@@ -154,8 +204,39 @@ export default function Auth() {
               <div className="text-center mb-6">
                 <h2 className="text-xl font-bold text-foreground mb-1">Selamat Makan</h2>
                 <p className="text-sm text-muted-foreground">
-                  Enter your email to sign in or create an account
+                  Sign in or create an account
                 </p>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full gap-3"
+                onClick={handleGoogleSignIn}
+                disabled={authBusy}
+              >
+                {googleLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Connecting to Google...
+                  </>
+                ) : (
+                  <>
+                    <GoogleIcon className="w-4 h-4" />
+                    Continue with Google
+                  </>
+                )}
+              </Button>
+
+              <div className="relative my-5">
+                <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="bg-card px-3 text-xs text-muted-foreground">
+                    or continue with email
+                  </span>
+                </div>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -171,7 +252,7 @@ export default function Auth() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="pl-10"
-                      disabled={loading}
+                      disabled={authBusy}
                       required
                     />
                   </div>
@@ -180,9 +261,9 @@ export default function Auth() {
                 <Button 
                   type="submit" 
                   className="w-full gap-2"
-                  disabled={loading || !email}
+                  disabled={authBusy || !email}
                 >
-                  {loading ? (
+                  {emailLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
                       Sending magic link...
